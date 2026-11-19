@@ -5,6 +5,8 @@
 **Language:** English (aligned with the existing plans)  
 **Scope:** Swiss SME credit marketplace MVP. Real bank lending and empirically validated credit ratings are **not** implemented in the demo.
 
+> **Status note (2026-11-19):** Diagrams 02 (containers) and 03 (modules) show the earlier modular-monolith design and are **superseded** by [`docs/architecture/`](architecture/README.md) (service-based, ADR-0001). Diagrams 01, 04, 08–13 (context, data lineage, entity relationships, state machines, privacy flow) remain valid as domain diagrams. In the sequences (05–07), the participants map to services: `access` → Identity / Marketplace (consent), `accounting` → Accounting Integration, `analysis` → Financial Intelligence, `lending` → Marketplace, `advisory` → Advisory. Current sequences are in [06-runtime-and-integration.md](architecture/06-runtime-and-integration.md).
+
 > These are **design diagrams**, not reverse-engineered diagrams of a deployed application. They describe agreed target behavior and assumptions to verify during development. They are based on `CredSort_Architecture_Implementation_Plan_EN_v1.md` and `CredSort_Master_Product_Development_Plan_EN_v1.md`.
 
 ## Diagram index

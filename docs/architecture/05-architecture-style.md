@@ -1,180 +1,145 @@
-# 05 — Architecture Style and Trade-offs
+# 05 — Architecture Style Selection and Trade-offs
 
-**Date:** 2026-11-19 · **Status:** Proposed · **Decision:** [ADR-0001](../adr/0001-modular-monolith.md)
+**Date:** 2026-11-19 · **Revision:** 2 · **Status:** Proposed · **Decision:** [ADR-0001](../adr/0001-architecture-style.md)
 
-## 1. Partitioning: by domain, not by technical layer
+> **Revision 2.** Revision 1 chose a modular monolith, mainly because of a feasibility constraint (a two-person team). The stakeholders removed that constraint: implementation capacity is not a limiting factor. The style is therefore selected **purely on architecture characteristics** ([04](04-architecture-characteristics.md), [ADR-0012](../adr/0012-driving-architecture-characteristics.md)).
 
-| Option | Top-level split | Fit for CredSort |
+## 1. Decision in one sentence
+
+> CredSort uses a **service-based architecture** as its backbone: six coarse-grained domain services, each with its own database. Services integrate **event-driven** through a transactional outbox and a message broker. **Microkernel-style plug-ins** sit at every external edge, and a **pipes-and-filters pipeline** turns accounting data into assessments.
+
+## 2. Evaluation criteria
+
+Weights follow the driving characteristics. Feasibility, team size and implementation effort are **not** criteria.
+
+| Characteristic | Weight | Why |
 |---|---|---|
-| Technical partitioning | `controllers/`, `services/`, `repositories/` for everything | A change to "how SMEs are charged" would touch every layer. Boundaries between consent, scoring and fees would blur. |
-| **Domain partitioning** ✅ | `access/`, `accounting/`, `analysis/`, `lending/`, `advisory/`, `billing/` | Changes follow business capabilities. Ownership and tests per module. Modules can be extracted later. |
+| Confidentiality | ×3 | Confidential SME financials; trust is the product |
+| Data integrity | ×3 | Assessments and fees must be exact, reproducible and audited |
+| Evolvability | ×2 | Pricing, data sources and channels are still changing |
+| Fault tolerance | ×1 | bexio, the LLM and other providers fail independently |
+| Testability | ×1 | Financial logic must be verifiable in isolation |
+| Auditability & explainability | ×1 | Neutral, explainable decisions; full activity history |
+| Interoperability | ×1 | More accounting, banking, KYB and invoicing providers over time |
 
-Inside each module we use a small hexagonal layout: `domain/` (pure rules), `application/` (use cases, transactions), `adapters/` (HTTP routes, persistence, external systems), `api.py` (the only thing other modules may import).
+The maximum weighted score is 60. Scores run from 1 (poor) to 5 (excellent) and are the architecture team's judgement for CredSort's context.
 
-## 2. Architecture quanta
+## 3. Case for and against every style
 
-A **quantum** is an independently deployable part with its own characteristics and synchronous coupling. We check whether any part of CredSort needs characteristics so different from the rest that it deserves its own quantum.
+### 3.1 Whole-system styles
 
-| Part | Distinct needs? | Own quantum now? |
+| Style | For | Against | C | I | E | FT | T | AE | IO | **Score** |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Layered monolith | One ACID transaction everywhere | Technical partitioning mixes consent, scoring and fees; every module reaches all data; one failure stops everything | 2 | 5 | 1 | 1 | 2 | 3 | 2 | **31** |
+| Modular monolith | ACID plus domain boundaries; simple to reason about | All data reachable from every module (boundary enforced only in code); no fault isolation; everything deployed together | 3 | 5 | 3 | 2 | 4 | 4 | 3 | **43** |
+| Service-based, shared DB (classic) | Coarse services, still ACID through the shared DB | A shared DB is a shared blast radius and a coupling point; isolation only partial | 3 | 4 | 3 | 3 | 4 | 4 | 3 | **41** |
+| **Service-based, DB per service** | Real data isolation and least privilege; fault containment; independent change; transactional flows kept whole inside a service | Cross-service consistency is eventual; needs reliable messaging | 4 | 4 | 4 | 4 | 4 | 4 | 4 | **48** |
+| Event-driven (pure) | Loose coupling; best fault tolerance; reacts naturally to "import completed" or "offer submitted" | Eventual consistency everywhere: "exactly one selected offer" and "fee charged with selection" become hard; difficult to audit and reproduce | 3 | 2 | 4 | 5 | 2 | 2 | 4 | **36** |
+| Microservices | Highest evolvability; fine-grained deployment and scaling | Splits the consent → matching → offer → selection flow across services (sagas, compensation, double-selection windows); copies financial data into many services; scalability is not a need | 3 | 2 | 5 | 4 | 3 | 2 | 4 | **38** |
+| Space-based | Extreme elastic load | In-memory data grids weaken integrity and confidentiality; CredSort has no such load | 2 | 2 | 3 | 4 | 2 | 2 | 3 | **29** |
+| Orchestration-driven SOA | Central workflow control | A central orchestrator couples everything; weak evolvability | 3 | 3 | 2 | 2 | 2 | 3 | 4 | **33** |
+| Serverless / FaaS | Pay per use; scale to zero | Long imports and strict transactions fit poorly; state scattered; cold starts; hard offline demo | 3 | 2 | 4 | 3 | 2 | 2 | 3 | **33** |
+
+C = confidentiality, I = integrity, E = evolvability, FT = fault tolerance, T = testability, AE = auditability & explainability, IO = interoperability.
+
+### 3.2 Partial styles (cannot carry the whole system, but are excellent in one place)
+
+| Style | For | Against | Where CredSort uses it |
+|---|---|---|---|
+| **Microkernel (plug-ins)** | Swap providers and rules without touching the core; offline fakes | Not a fit for a multi-domain workflow as a whole | Every external edge: accounting sources, LLMs, KYB, invoicing, notification channels; versioned scorecards, mappings and fee calculators |
+| **Pipes & filters (pipeline)** | Each step is pure, versioned, testable and reproducible | Only fits batch-like data flows, not the interactive marketplace | Import → normalize → validate → map → snapshot → metrics → assessment + Data Confidence |
+
+### 3.3 Hybrids
+
+| Hybrid | For | Against | C | I | E | FT | T | AE | IO | **Score** |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Modular monolith + microkernel + pipeline | Full ACID; excellent testability and explainability | Same isolation and fault-tolerance weaknesses as the monolith | 3 | 5 | 4 | 2 | 5 | 5 | 5 | **49** |
+| Microservices + event-driven | Maximum decoupling and resilience | Integrity problems multiplied; data copied everywhere | 3 | 2 | 5 | 5 | 3 | 2 | 4 | **39** |
+| **Service-based (DB per service) + event-driven + microkernel + pipeline** ✅ | Every style used only where it is strongest; transactional core kept whole | Most moving parts: broker, several DBs, identity platform | **5** | **4** | **5** | **4** | **4** | **5** | **5** | **55** |
+
+### 3.4 Why the winning hybrid scores where it does
+
+| Characteristic | Score | Reasoning |
 |---|---|---|
-| SME and lender use cases (profile, application, matching, offers) | Confidentiality + integrity, synchronous, transactional | Core quantum |
-| Billing (fee charges) | Same integrity needs; must commit atomically with offer selection | Core quantum. Separating it would require distributed transactions. |
-| Accounting import | Long-running, depends on an external API, needs fault tolerance | **No.** In-process background job with recovery ([ADR-0005](../adr/0005-sync-use-cases-and-background-import.md), [ADR-0010](../adr/0010-import-recovery-and-idempotency.md)). First candidate to move into a separate *worker process* of the same codebase. |
-| Advisory (LLM) | External availability, cost, latency | **No.** Template fallback isolates failures. Candidate for extraction if AI usage grows. |
-| Benchmark analytics | Read-heavy aggregates | **No.** Materialized views in `lending` until volume justifies a warehouse. |
+| Confidentiality | 5 | A database per service with its own credentials; Advisory never touches financial databases; consent lives next to matching (no stale copies); thin events carry IDs, not values; tokens never reach the browser |
+| Integrity | 4 (not 5) | Every critical invariant sits inside one service's ACID transaction. Cross-service effects (fees, snapshots) are **eventually** consistent but **guaranteed** by outbox + idempotent inbox + reconciliation. Loses one point against a monolith because effects can lag. |
+| Evolvability | 5 | Services change and deploy independently; plug-ins and versioned rule sets turn most business changes into configuration |
+| Fault tolerance | 4 | bexio, LLM, billing or notification failures stay contained. Identity remains a critical shared dependency, so not 5. |
+| Testability | 4 | Pipeline filters and domain logic are pure; contract tests per service. End-to-end tests need the full stack. |
+| Auditability & explainability | 5 | Versioned pipeline outputs, a central tamper-evident audit log, deterministic and explained ranking |
+| Interoperability | 5 | Plug-in ports for every external system |
 
-**Result: one quantum.** Two documented future split candidates (import worker, advisory).
+## 4. Why not microservices (the closest "more distributed" alternative)
 
-## 3. Candidate styles and scoring
+1. **Integrity:** consent, application state, offers and selection would live in different services. "Exactly one selected offer, audited, with disclosure checked" would become a saga with compensations and race windows. A database constraint can no longer guarantee it.
+2. **Confidentiality:** fine-grained services each need copies of financial data. More copies, more endpoints and more service credentials mean a larger attack surface. Consent revocation would propagate with a delay.
+3. **Evolvability gain is marginal:** the parts that change independently (pricing, integrations, AI) are already separate services. Consent, matching and offers always change together.
+4. **Its main strengths are not our needs:** fine-grained scaling and elasticity are explicitly *not* driving characteristics.
 
-Scores are **our assessment for CredSort's context** (team of two, MVP, confidential financial data), from 1 (poor) to 5 (excellent). Weights reflect the driving characteristics ([04](04-architecture-characteristics.md)), with feasibility weighted as heavily as the top two because it is a hard constraint.
+## 5. Architecture quanta
 
-| Style | Confidentiality ×3 | Integrity ×3 | Evolvability ×2 | Feasibility ×3 | Testability ×1 | Fault tolerance ×1 | **Weighted (max 65)** |
-|---|---|---|---|---|---|---|---|
-| Layered monolith | 3 | 4 | 2 | 5 | 2 | 2 | 44 |
-| **Modular monolith** | **4** | **5** | **4** | **5** | **4** | **2** | **56** |
-| Microkernel (plug-in) | 3 | 4 | 4 | 4 | 3 | 2 | 46 |
-| Service-based | 3 | 4 | 4 | 3 | 4 | 3 | 45 |
-| Event-driven | 2 | 2 | 4 | 2 | 2 | 4 | 32 |
-| Microservices | 2 | 2 | 5 | 1 | 4 | 4 | 33 |
-| Space-based | 2 | 2 | 3 | 1 | 1 | 3 | 25 |
+A quantum is an independently deployable unit with high functional cohesion. With a database per service and asynchronous integration, CredSort has **six domain quanta** plus platform components.
 
-### Why each alternative loses
+| Quantum | Own characteristics | Synchronous dependencies (runtime coupling) |
+|---|---|---|
+| Identity | Highest availability; security-critical | Keycloak |
+| Accounting Integration | Fault tolerance towards bexio; long-running work; holds bexio tokens | — |
+| Financial Intelligence | Integrity and reproducibility; CPU-bound pipeline | Accounting (ledger fetch by claim check, asynchronous trigger) |
+| Marketplace | Integrity (ACID core), confidentiality (consent + matching) | Intelligence **at publication only**; Billing **for quotes at display time only** |
+| Billing | Integrity (immutable ledger), evolvability (pricing) | — |
+| Advisory | Cost control, external LLM availability | Intelligence (advisory context) |
 
-- **Layered monolith.** As simple to run, but technical partitioning lets consent, scoring and billing logic leak into each other. Evolvability is low because every business change crosses all layers.
-- **Microkernel.** Good for pluggable *providers* (accounting sources, LLMs, KYB, pricing policies), and we adopt that idea at the edges. CredSort's core is a multi-step workflow across several domains, not a single core with plug-ins.
-- **Service-based** (a few coarse services, often with a shared DB). The most credible *next* step. Today it would add network calls, service authentication and deployment work without a measured benefit.
-- **Event-driven.** Eventual consistency conflicts with "exactly one selected offer" and "fee charged with the selection". Debugging and demo reproducibility suffer.
-- **Microservices.** Each service needs its own database, so offer selection, fee recording and audit would need sagas. Each service is an extra attack surface. Two developers cannot operate it.
-- **Space-based.** Built for extreme, elastic load that CredSort does not have.
+Identity is the one dependency every quantum shares at runtime (context tokens, [ADR-0027](../adr/0027-context-tokens-and-service-trust.md)). It is engineered for high availability and short outages are bridged by token lifetimes. Details: [07 — failure modes](07-failure-modes-and-risks.md).
 
-## 4. Chosen style
-
-> **A domain-partitioned modular monolith with ports & adapters at the external edges**: one FastAPI backend with six modules, one PostgreSQL database with a schema per module, and one Next.js frontend. Deployed with Docker Compose as a single architecture quantum.
+## 6. Architecture overview
 
 ```mermaid
 flowchart TB
-  subgraph FE["Next.js app (one deployable)"]
-    SMEP["/sme portal"]
-    LP["/lender portal"]
-    AP["/admin"]
-    FP["/fiduciary (P2)"]
-  end
-  subgraph BE["FastAPI process (one deployable)"]
-    HTTP["HTTP routes · auth · request context"]
-    subgraph MODS["Modules (each: api.py · application · domain · adapters)"]
-      ACCESS["access"]
-      ACC["accounting"]
-      ANA["analysis"]
-      LEND["lending"]
-      ADV["advisory"]
-      BILL["billing"]
-    end
-    JOBS["Background import runner (in-process)"]
-    EVT["In-process event dispatcher (after commit)"]
-  end
-  DB[("PostgreSQL · schemas: access, accounting, analysis, lending, billing")]
-  FE -->|"/api/* proxy · same-origin session cookie"| HTTP
-  HTTP --> MODS
-  JOBS --> ACC
-  MODS --> DB
-  ACC -->|"BexioAdapter / SyntheticDataAdapter"| EXT1["bexio"]
-  ADV -->|"LlmApiAdapter / TemplateAdapter"| EXT2["LLM"]
-  ACCESS -.->|"KybProvider (stub)"| EXT3["KYB vendor"]
-  BILL -.->|"PaymentProvider (later)"| EXT4["Invoicing"]
+  B["Browser · SME / Lender / Admin / Fiduciary (P2)"] --> EDGE["Edge gateway · TLS · WAF · rate limits"]
+  EDGE --> WEB["Web app + BFF · Next.js · server-side sessions"]
+  WEB -->|"OIDC"| KC["Keycloak · login · MFA"]
+  WEB -->|"context token"| ID["Identity service"]
+  WEB --> ACC["Accounting Integration service"]
+  WEB --> FI["Financial Intelligence service"]
+  WEB --> MKT["Marketplace service"]
+  WEB --> BIL["Billing service"]
+  WEB --> ADV["Advisory service"]
+  WEB --> NTF["Notification service"]
+  WEB --> AUD["Audit service"]
+  FI -->|"claim check: fetch ledger"| ACC
+  MKT -->|"published profile at publication"| FI
+  MKT -->|"signed fee quotes"| BIL
+  ADV -->|"aggregates only"| FI
+  ACC & FI & MKT & BIL & ID -->|"outbox → events"| MQ[("RabbitMQ")]
+  MQ --> FI & BIL & NTF & AUD & MKT
+  ACC --- DBA[("accounting DB")]
+  FI --- DBF[("intelligence DB")]
+  MKT --- DBM[("marketplace DB")]
+  BIL --- DBB[("billing DB")]
+  ID --- DBI[("identity DB")]
+  NTF --- DBN[("notification DB")]
+  AUD --- DBAU[("audit DB · append-only")]
+  ACC -->|"plug-ins"| BX["bexio · synthetic · Abacus (later)"]
+  ADV -->|"plug-ins"| LLM["LLM · SLM · templates"]
+  ID -->|"plug-in"| KYB["KYB vendor · stub"]
+  BIL -.->|"plug-in (pilot)"| INV["Invoicing / payments"]
 ```
 
-### How the style delivers each driving characteristic
-
-| Characteristic | Mechanism |
-|---|---|
-| Confidentiality | One security perimeter; authorization and consent centralized in `access` and enforced in every application service; tenant-scoped repositories; RLS before the pilot ([ADR-0008](../adr/0008-consent-and-permitted-field-matching.md), [ADR-0016](../adr/0016-authentication.md), [ADR-0017](../adr/0017-tenant-isolation.md)) |
-| Data integrity | Local ACID transactions; DB constraints; immutable versioned snapshots, assessments, offers and fee charges; Decimal money ([ADR-0011](../adr/0011-transaction-boundaries-and-offer-concurrency.md), [ADR-0015](../adr/0015-money-and-financial-calculations.md)) |
-| Evolvability | Module boundaries enforced by tests; ports for unstable providers; price books, scorecards and mappings as versioned data ([ADR-0002](../adr/0002-six-domain-modules.md), [ADR-0003](../adr/0003-ports-and-adapters.md), [ADR-0013](../adr/0013-billing-and-sme-charging.md)) |
-| Feasibility | One repository, one backend, one DB, one `docker compose up`; no broker, cache or orchestrator |
-
-## 5. Trade-offs we accept
+## 7. Trade-offs accepted
 
 | We gain | We give up | Mitigation |
 |---|---|---|
-| ACID across modules (selection + fee + audit in one transaction) | Modules cannot be deployed or scaled independently | Clear extraction path; revisit triggers below |
-| One process: simple operations, fast local calls | A crash or memory leak affects the whole app | Health checks, restart policy, import recovery rule |
-| One shared database | Risk of modules coupling through tables | Schema per module, single table ownership, **no cross-schema foreign keys**, architecture tests ([ADR-0004](../adr/0004-single-postgresql-and-table-ownership.md)) |
-| Boundaries in code (cheap) | Boundaries erode if nobody checks | import-linter contracts in CI; PR review of cross-module changes |
-| In-process background jobs | Jobs are lost on restart | Mark interrupted jobs FAILED; safe manual retry ([ADR-0010](../adr/0010-import-recovery-and-idempotency.md)) |
-| In-process events (no broker) | No delivery guarantee for after-commit handlers | Only best-effort side effects use events; critical writes stay in the transaction ([ADR-0023](../adr/0023-in-process-domain-events.md)) |
-| Built-in auth that works offline | Must be hardened before real users | OIDC + MFA before pilot ([ADR-0016](../adr/0016-authentication.md)) |
-| Rule-based scorecard (explainable) | Less predictive than a statistical model | Labelled illustrative; ML only with real outcome data |
+| Data isolation per service; small blast radius | Cross-service queries are impossible; data must be fetched by API or projected | Thin events + claim-check pulls; documented projections with staleness bounds ([06](06-runtime-and-integration.md)) |
+| Independent deployment and change | Contract governance across services | Versioned OpenAPI and event schemas, consumer-driven contract tests ([ADR-0006](../adr/0006-api-contracts.md), [ADR-0023](../adr/0023-event-driven-integration.md)) |
+| Fault containment | Eventual consistency for fees, snapshots, notifications, audit | Outbox + idempotent inbox + reconciliation jobs ([ADR-0011](../adr/0011-consistency-model.md)) |
+| Strong security posture (IdP, MFA, BFF, mTLS in pilot) | More infrastructure: Keycloak, broker, gateway, several DBs | Everything runs in Docker Compose locally, including offline demos ([ADR-0024](../adr/0024-deployment.md)) |
+| Explainable, reproducible assessments | Pipeline versions must be managed | Version registry in Intelligence ([ADR-0025](../adr/0025-financial-data-pipeline.md)) |
+| Distributed tracing of complex flows | Debugging spans several processes | OpenTelemetry across HTTP and messages ([ADR-0029](../adr/0029-observability.md)) |
+| Higher operational cost | Not a driving concern by stakeholder decision | — |
 
-## 6. Evolution path
+## 8. Revisit when
 
-| Stage | Architecture | Trigger to move on |
-|---|---|---|
-| **1 · MVP / demo** | Modular monolith, one process, Docker Compose, built-in auth, offline mode | Pilot with real SMEs and lenders agreed |
-| **2 · Pilot** | Same codebase plus a separate **worker process** for imports; PostgreSQL RLS; OIDC + MFA; Swiss/EU managed hosting; real KYB vendor; invoicing provider | Measured load, availability needs, or team growth |
-| **3 · Commercial** | Service-based split only where measured: e.g. *accounting integration* and *advisory* as services; benchmark warehouse | Independent release cadence, scale, or regulatory isolation |
-
-**Revisit the modular monolith when** any of these hold: sustained import load blocks interactive requests; AI must scale or fail independently; production bank APIs require separate security zones; more than about 6 developers work in parallel; or a regulator requires a component (e.g. payments) to be isolated.
-
-## 7. Target repository structure
-
-```text
-credsort/
-  frontend/                       # Next.js (App Router, TypeScript)
-    app/(sme)/  app/(lender)/  app/(admin)/  app/(fiduciary)/   # route groups = portals
-    lib/api/                      # client generated from docs/api/openapi.json
-  backend/
-    credsort/
-      main.py                     # composition root, DI, route registration
-      shared/                     # Money, UnitOfWork, errors, events, clock, settings
-      access/      accounting/   analysis/   lending/   advisory/   billing/
-        api.py                    # public facade + DTOs (only cross-module import)
-        domain/                   # pure rules, no FastAPI/SQLAlchemy imports
-        application/              # use cases, transaction boundaries
-        adapters/                 # http routes, repositories, external adapters
-        ports/                    # only where an external dependency needs one
-    migrations/                   # Alembic; each migration touches one schema
-    tests/  unit/  integration/  e2e/  architecture/
-  demo_data/                      # 3 synthetic SMEs, 3 lenders (no real clients)
-  docs/  architecture/  adr/  api/  financial-methodology.md  bexio-feasibility.md
-  docker-compose.yml
-```
-
-### Architecture fitness functions (sketch; verify exact syntax when CI is set up)
-
-```ini
-# backend/.importlinter
-[importlinter]
-root_package = credsort
-include_external_packages = True
-
-[importlinter:contract:module-layers]
-name = Module dependency direction
-type = layers
-layers =
-    credsort.lending | credsort.advisory
-    credsort.analysis | credsort.billing
-    credsort.accounting
-    credsort.access
-    credsort.shared
-
-[importlinter:contract:neutrality]
-name = Matching never sees billing
-type = forbidden
-source_modules = credsort.lending.domain.matching
-forbidden_modules = credsort.billing
-
-[importlinter:contract:pure-domain]
-name = Domain code is framework-free
-type = forbidden
-source_modules =
-    credsort.access.domain
-    credsort.accounting.domain
-    credsort.analysis.domain
-    credsort.lending.domain
-    credsort.billing.domain
-forbidden_modules = fastapi
-    sqlalchemy
-```
-
-Additional rules to check in tests or review: cross-module imports go only through `<module>.api`; `billing` must not import `accounting` or `analysis`.
+- A service becomes a hotspot that needs finer decomposition (consider splitting *that* service only).
+- Identity outages measurably affect availability (consider token-lifetime tuning or regional replicas).
+- Event volume or replay needs outgrow RabbitMQ (consider a log-based broker).
+- Regulators require stronger isolation of a component (e.g. billing with payments) → a separate security zone.

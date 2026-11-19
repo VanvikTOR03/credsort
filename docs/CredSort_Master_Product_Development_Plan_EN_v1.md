@@ -2,7 +2,7 @@
 
 **FinTech Certificate Programme · University of St. Gallen (HSG) · Working Plan v1.0**
 
-> **Update 2026-11-19:** The team decided that **SMEs will be charged** (amount and trigger to be decided). This replaces "SME access: free" in §2.2. See [ADR-0013](adr/0013-billing-and-sme-charging.md) and the architecture docs in [`docs/architecture/`](architecture/README.md).
+> **Update 2026-11-19:** The team decided that **SMEs will be charged** (amount and trigger to be decided). This replaces "SME access: free" in §2.2. The software architecture (Stage 10) is now a service-based design documented in [`docs/architecture/`](architecture/README.md) and [`docs/adr/`](adr/README.md); see [ADR-0001](adr/0001-architecture-style.md) and [ADR-0013](adr/0013-billing-and-sme-charging.md).
 
 This document brings together everything we have discussed about CredSort into **one overarching product and development plan**: not only software architecture, but also core features, the financial model, external integrations, user interfaces, the business model, testing, and demonstration preparation.
 

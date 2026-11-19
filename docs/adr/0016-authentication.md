@@ -1,54 +1,45 @@
-# ADR-0016: Authentication — Built-In Sessions for the MVP, OIDC + MFA Before the Pilot
+# ADR-0016: Authentication — Keycloak (OIDC + MFA) with Tokens Kept in the BFF
 
 | | |
 |---|---|
-| **Status** | Proposed |
+| **Status** | Proposed — replaces Revision 1 (built-in sessions for the MVP) |
 | **Date** | 2026-11-19 |
 | **Deciders** | CredSort team |
 | **Owner** | To assign |
-| **Related** | [ADR-0017](0017-tenant-isolation.md), [ADR-0018](0018-single-nextjs-app-with-portals.md), [ADR-0024](0024-deployment-and-demo-modes.md) |
+| **Related** | [ADR-0018](0018-web-app-and-bff.md), [ADR-0027](0027-context-tokens-and-service-trust.md), [08](../architecture/08-security-and-data-protection.md) |
 
 ## Context
 
-The plans describe authorization (memberships, consent) but not **authentication**. Constraints:
-
-- Confidentiality is the top characteristic.
-- The demo must work **offline** ([ADR-0024](0024-deployment-and-demo-modes.md)).
-- The MVP uses synthetic data only; real users and real data come at the pilot.
-- Authorization must stay server-side in `access`, not in the frontend.
+Confidentiality is the top characteristic. Revision 1 deferred a real identity provider because of team capacity, which is no longer a constraint. The demo must still run offline.
 
 ## Decision
 
-**MVP**
-- Authentication lives in the `access` module, using a **maintained library** rather than hand-rolled crypto. Passwords are hashed with **argon2id**.
-- **Server-side sessions** referenced by an `HttpOnly`, `Secure`, `SameSite=Lax` cookie. **No tokens in `localStorage`.**
-- **CSRF protection** for state-changing requests (double-submit token or same-site plus origin checks).
-- Login rate limiting and generic error messages.
-- Seeded demo users per organization and role (passwords in the local `.env` only, never committed).
-- A request context `(user_id, organization_id, role)` is resolved per request and passed to every use case.
-
-**Before the pilot (mandatory)**
-- Move to an **OIDC identity provider with MFA**, hosted in Switzerland or the EU. `access` keeps authorization; only authentication moves.
+1. **Keycloak** is the identity provider: OIDC authorization code + PKCE, password policy, brute-force detection, **MFA (TOTP/WebAuthn) required** for lender users and SME admins from day one (all users before the pilot).
+2. Keycloak runs **inside** the Docker Compose stack, with a realm export of demo users, so offline demos work.
+3. The **web app's BFF** is the OIDC client. Access and refresh tokens are stored **server-side** in the BFF's session store. The browser only receives an `HttpOnly`, `Secure`, `SameSite=Lax` session cookie.
+4. CSRF protection for state-changing requests to the BFF; a strict Content-Security-Policy.
+5. Domain services **do not accept Keycloak user tokens** directly. They accept Identity-issued **context tokens** ([ADR-0027](0027-context-tokens-and-service-trust.md)).
+6. Service identities use Keycloak **client credentials** with audience-restricted tokens.
+7. Lenders' corporate SSO (identity brokering) is possible later through Keycloak without changes to services.
 
 ## Alternatives considered
 
-| Option | Why not now |
+| Option | Why not |
 |---|---|
-| Managed IdP (Auth0, Clerk, etc.) from day one | Breaks the offline demo; an extra vendor; data-residency questions before we need them. |
-| Self-hosted Keycloak container | An extra heavy container and configuration for a two-person MVP. |
-| NextAuth / auth in the frontend | Splits identity between two runtimes; authorization must be enforced in the backend anyway. |
-| JWT in `localStorage` | XSS exposure; revocation is hard. |
+| Built-in password auth in a service | Reinvents security-critical functionality; no MFA or SSO path |
+| Managed SaaS IdP | Breaks offline demos; data-residency review needed; Keycloak can be hosted in the chosen region |
+| Tokens in browser storage | XSS exposure |
 
 ## Consequences
 
-**Positive**: works offline; simple; secure defaults for a demo.
-**Negative**: no MFA and no SSO in the MVP; migration work before the pilot.
+**Positive**: MFA and SSO-ready from the start; tokens never exposed to the browser.
+**Negative**: Keycloak is critical infrastructure to operate (HA in the pilot; realm configuration as code).
 
 ## Compliance
 
-- Tests: unauthenticated requests → 401; session cookie flags set; CSRF-protected mutations reject missing tokens; login rate limit triggers.
-- Secrets scanner in CI; `.env` is in `.gitignore`.
+- E2E: no tokens in `localStorage`/`sessionStorage`; session cookie flags; CSRF rejection; MFA enforced for the required roles.
+- Realm configuration is versioned in `deploy/keycloak/`.
 
 ## Revisit when
 
-Pilot preparation starts (switch to OIDC + MFA); or a lender requires SSO with its own identity provider.
+A lender requires federation with its own IdP (configure brokering); or Keycloak's operating cost outweighs a managed IdP in the pilot region.

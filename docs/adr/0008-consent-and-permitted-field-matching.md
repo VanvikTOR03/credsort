@@ -1,47 +1,48 @@
-# ADR-0008: Consent and Permitted-Field Matching (No Indirect Disclosure)
+# ADR-0008: Consent Lives in Marketplace; Matching Uses Only Permitted Fields
 
 | | |
 |---|---|
-| **Status** | Proposed — formalizes Architecture Plan v1 §6 |
+| **Status** | Proposed — formalizes Architecture Plan v1 §6; consent ownership moved to Marketplace |
 | **Date** | 2026-11-19 |
 | **Deciders** | CredSort team |
 | **Owner** | To assign |
-| **Related** | [ADR-0017](0017-tenant-isolation.md), [ADR-0021](0021-matching-neutrality.md), [ADR-0019](0019-organization-types-and-delegation.md) |
+| **Related** | [ADR-0002](0002-service-decomposition.md), [ADR-0017](0017-tenant-isolation.md), [ADR-0021](0021-matching-neutrality.md), [ADR-0026](0026-published-profile-snapshots.md) |
 
 ## Context
 
-Confidentiality is the top driving characteristic. Lenders search applications using criteria. Even *appearing* in a filtered result ("revenue > CHF 5M") discloses information, so it is not enough to hide values on the detail page.
+Confidentiality is the top characteristic. Even *appearing* in a filtered result ("revenue > CHF 5M") discloses information, so hiding values on the detail page is not enough. Consent must be checked on every matching query, and revocation must take effect immediately.
 
 ## Decision
 
-1. **Connecting bexio is not consent.** Nothing is visible to lenders until the SME **publishes** an application.
-2. Publication always creates a **DataDisclosure**: `application_id`, `recipient_scope` (all verified lenders / a specific lender), `level` (`summary` / `full`), `purpose` (`matching` / `application_review`), **`permitted_fields`** (allowlist) and `revoked_at`.
-3. Lenders can match, filter, sort, rank and count **only** on published applications and **only** on that application's permitted fields. An application whose allowlist does not cover a lender's criterion is **excluded** from that lender's results, not "matched with unknown".
-4. Lender criteria may reference only fields from the platform's **allowlistable field catalogue**.
-5. **`full` access** requires a separate, lender-specific approval by the SME (screen S11).
-6. **Revocation** stops new reads and matching immediately. The UI states that copies a lender already received cannot be recalled.
-7. Server-side checks: `access.api.can_view(ctx, application, level)` and `access.api.can_filter(ctx, field, application)` are called in every lending query and detail view, not in the UI.
-8. The SME sees a **"what lenders see" preview** before publishing; the default allowlist is the summary set (industry, amount band, term, assessment category, Data Confidence band).
+1. **Connecting bexio is not consent.** Nothing is visible to lenders until the SME publishes an application.
+2. **Consent (DataDisclosure) is owned by Marketplace**, in the same database as applications, published profiles and matching, so publication + consent is one transaction and revocation is effective immediately.
+3. A DataDisclosure records `application_id`, `recipient_scope` (all verified lenders / one lender), `level` (`summary` / `full`), `purpose` (`matching` / `application_review`), **`permitted_fields`**, `revoked_at`.
+4. Lenders can match, filter, sort, rank and count **only** on published applications and **only** on that application's permitted fields. If a lender's criterion uses a field the application does not permit, the application is **excluded**.
+5. Lender criteria may reference only fields from the platform's **allowlistable field catalogue**.
+6. Matching runs exclusively on **PublishedProfiles** (frozen permitted fields), never on live Intelligence data ([ADR-0026](0026-published-profile-snapshots.md)).
+7. **Full access** requires a separate, lender-specific SME approval; the approved additional fields are frozen as a lender-specific profile at approval time.
+8. **Revocation** blocks further reads and matching immediately; the UI states that copies already received cannot be recalled.
+9. The SME sees a **"what lenders see" preview** before publishing; the default allowlist is the summary set (industry, amount band, term, assessment category, Data Confidence band).
 
 ## Alternatives considered
 
 | Option | Why not |
 |---|---|
-| Hide values only in the UI | Filters and counts still leak information. |
-| All-or-nothing publication | Poor privacy and conversion; SMEs need granular control. |
-| Matching on all fields but showing only permitted ones | Ranking position itself leaks the hidden values. |
+| Consent in Identity | Remote consent checks on every query, or stale copies; non-atomic publication |
+| Hide values only in the UI | Filters, counts and ranking still leak |
+| Match on all fields, show only permitted ones | Ranking position leaks hidden values |
 
 ## Consequences
 
-**Positive**: privacy by design; a trust argument for SMEs and fiduciaries.
-**Negative**: lenders see fewer matches when SMEs are restrictive; more complex queries; consent UX must be clear.
+**Positive**: privacy by design; immediate revocation; trust argument for SMEs and fiduciaries.
+**Negative**: restrictive SMEs get fewer matches; more complex queries.
 
 ## Compliance
 
-- Indirect-disclosure test suite: a lender with criteria on a non-permitted field must receive the same results, counts and order as if the application did not exist.
-- Tests for revocation, `full` access approval and denial.
-- Every lending query function takes an access context; no unscoped query helpers (review rule + test).
+- FF-C2 indirect-disclosure suite.
+- Tests for revocation, full-access approval and denial.
+- Marketplace query functions require the lender context and apply consent filters (RLS policies include disclosure checks where feasible).
 
 ## Revisit when
 
-Lenders need richer search (consider banded values or SME-approved templates); or real data and a legal review add requirements such as consent expiry.
+Lenders need richer search (consider banded values or SME-approved templates); or legal review adds consent expiry.
