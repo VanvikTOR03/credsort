@@ -6,6 +6,8 @@
 **Team:** 2 developers using Codex / AI-assisted development  
 **Planning:** Milestone-based, with explicit completion criteria, **without a three-day deadline**
 
+> **Update 2026-11-19:** The decisions in this plan are now recorded as ADRs in [`docs/adr/`](adr/README.md), with the architecture review in [`docs/architecture/`](architecture/README.md). Where they differ, the ADRs take precedence. Main changes: a sixth module, `billing` (SMEs will be charged); re-ranked driving characteristics; new ADRs on authentication, tenant isolation, money handling, neutrality and the money flow.
+
 > **Purpose of this document.** To establish the architectural decisions and turn them into a sequential implementation plan for a working CredSort MVP. This is not a production specification for a regulated lending service, nor a promise of validated bank-grade credit scoring. Any unverified assumptions about bexio, banking APIs, or data availability must be tested experimentally.
 
 ---

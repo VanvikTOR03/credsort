@@ -19,6 +19,14 @@ By integrating with accounting software such as bexio, CredSort analyzes financi
 
 Next.js · FastAPI · PostgreSQL · Python · TypeScript · bexio API
 
+### Documentation
+
+- [Architecture overview](architecture/README.md): review, use case and screens, domain model, architecture characteristics, architecture style and trade-offs
+- [Architecture Decision Records](adr/README.md): 24 ADRs
+- [Master Product & Development Plan v1](CredSort_Master_Product_Development_Plan_EN_v1.md)
+- [Architecture & Implementation Plan v1](CredSort_Architecture_Implementation_Plan_EN_v1.md)
+- [Diagrams as Code](CredSort_Diagrams_as_Code_EN.md)
+
 ### Project Status
 
 Under development as part of the **FinTech Certificate Programme at the University of St. Gallen (HSG)**.
