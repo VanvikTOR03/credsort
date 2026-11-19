@@ -1,0 +1,20 @@
+{
+  "$id": "credsort.identity.organization.deletion_requested.v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "org_id": {
+      "pattern": "^[0-9a-fA-F-]{36}$",
+      "type": "string"
+    },
+    "requested_at": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "org_id",
+    "requested_at"
+  ],
+  "title": "identity.organization.deletion_requested",
+  "type": "object"
+}

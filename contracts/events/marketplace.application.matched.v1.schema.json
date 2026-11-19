@@ -1,0 +1,29 @@
+{
+  "$id": "credsort.marketplace.application.matched.v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "application_id": {
+      "pattern": "^[0-9a-fA-F-]{36}$",
+      "type": "string"
+    },
+    "lender_org_ids": {
+      "items": {
+        "pattern": "^[0-9a-fA-F-]{36}$",
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "sme_org_id": {
+      "pattern": "^[0-9a-fA-F-]{36}$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "application_id",
+    "sme_org_id",
+    "lender_org_ids"
+  ],
+  "title": "marketplace.application.matched",
+  "type": "object"
+}

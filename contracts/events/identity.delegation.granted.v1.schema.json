@@ -1,0 +1,28 @@
+{
+  "$id": "credsort.identity.delegation.granted.v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "fiduciary_org_id": {
+      "pattern": "^[0-9a-fA-F-]{36}$",
+      "type": "string"
+    },
+    "scopes": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "sme_org_id": {
+      "pattern": "^[0-9a-fA-F-]{36}$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "sme_org_id",
+    "fiduciary_org_id",
+    "scopes"
+  ],
+  "title": "identity.delegation.granted",
+  "type": "object"
+}

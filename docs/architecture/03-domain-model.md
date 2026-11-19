@@ -80,8 +80,8 @@ Six **domain services** and two **platform services**. Each owns exactly one dat
 | | |
 |---|---|
 | **Purpose** | Price books, fee rules, plans, entitlements, **signed quotes**, immutable fee charges, referral shares, invoicing export |
-| **Owns** | PriceBook, FeeRule, Plan, Entitlement, Quote, FeeCharge, ReferralShare, Subscription |
-| **External API** | Plans, subscriptions, charges, invoices; admin price-book management |
+| **Owns** | PriceBook, FeeRule, Entitlement, Quote, FeeCharge, ReferralShare |
+| **External API** | Fees and charges, invoices export; admin price-book management |
 | **Internal API** | `POST /internal/v1/quotes`, `GET /internal/v1/organizations/{id}/entitlements` |
 | **Publishes** | `billing.price_book.activated`, `billing.entitlements.changed`, `billing.charge.recorded`, `billing.charge.held` |
 | **Consumes** | `marketplace.application.published`, `marketplace.offer.selected`, `identity.organization.created` (referral attribution), `identity.organization.deletion_requested` |
@@ -125,7 +125,7 @@ Six **domain services** and two **platform services**. Each owns exactly one dat
 | **Financial Assessment** | A preliminary, rule-based evaluation of a snapshot; **not** a bank rating or a probability of default. |
 | **Data Confidence** | A separate measure of completeness, freshness, consistency, verifiability and provenance. |
 | **Scenario** | A what-if recalculation on a copy of a snapshot; never changes the baseline. |
-| **LoanApplication** | The SME's financing request: DRAFT → PUBLISHED → OFFER_SELECTED → CLOSED, or WITHDRAWN. |
+| **LoanApplication** | The SME's financing request: DRAFT → PUBLISHED → OFFER_SELECTED → CLOSED, or WITHDRAWN. After selection, the **Loan** moves SELECTED → FUNDED (lender confirms payout, 14-day dispute window) → CLOSED, or DISPUTED / CANCELLED. |
 | **PublishedProfile** | The **frozen copy of the permitted fields** of one assessment, taken at publication; the only financial data lenders ever see in matching. |
 | **DataDisclosure** | Consent record: recipient scope, level (summary/full), purpose, permitted fields, revocation time. |
 | **LenderPreference** | Versioned lending criteria: eligibility rules plus preference weights. |
@@ -134,7 +134,7 @@ Six **domain services** and two **platform services**. Each owns exactly one dat
 | **Quote** | A **signed**, expiring statement from Billing: "action A by payer P costs X under price-book version V". |
 | **FeeCharge** | An immutable ledger entry for a fee owed, created **exactly as quoted**. |
 | **PriceBook** | A versioned, dated set of FeeRules and Plans; immutable once active. |
-| **Entitlement** | A feature unlocked by a Plan (e.g. what-if analysis in Pro). |
+| **Entitlement** | A feature an organization may use. All SMEs get all features; there are no plans. |
 | **ReferralShare** | The share of a fee attributed to the referring fiduciary. |
 | **Outbox / Inbox** | Tables that guarantee events are published once a transaction commits (outbox) and processed at most once per consumer (inbox). |
 | **AuditRecord** | An immutable record of an action, kept locally and centrally. |
@@ -181,7 +181,7 @@ flowchart LR
 | ImportBatch | Accounting | Immutable; unique per (connection, period, content hash, normalizer version) |
 | FinancialSnapshot | Intelligence | Immutable; exactly one ImportBatch and one MappingVersion |
 | CreditAssessment | Intelligence | Immutable; references snapshot + ScorecardVersion; reproducible |
-| LoanApplication | Marketplace | State machine; publication requires a PublishedProfile, a DataDisclosure, a verified SME and a valid quote if a fee applies; **at most one SELECTED offer** (partial unique index) |
+| LoanApplication | Marketplace | State machine; publication requires a PublishedProfile, a DataDisclosure and a verified SME (no fee at publication); funding requires a selected offer and the lender's confirmation; **at most one SELECTED offer** (partial unique index) |
 | PublishedProfile | Marketplace | Immutable; contains only permitted fields; references the assessment version it was taken from |
 | DataDisclosure | Marketplace | Field allowlist required; revocation final; `full` needs a lender-specific grant |
 | LoanOffer | Marketplace | Terms immutable after submission; only its lender may withdraw; only an authorized SME user may select |
@@ -201,6 +201,6 @@ Every copy of another service's data is listed here with its staleness bound and
 | Organization verification / suspension status | Marketplace | Identity | Context-token claims (≤ 2 min) + events | ≤ token lifetime | Event replay / identity lookup |
 | Revoked memberships deny-list | All services | Identity | `identity.membership.revoked` | Event latency (seconds) | Replay |
 | Entitlements | Intelligence, Advisory | Billing | `billing.entitlements.changed` + internal API on cache miss | Event latency | Internal API |
-| Quote tokens | Marketplace | Billing | Synchronous at display time | Quote lifetime (e.g. 24 h) | Request a new quote |
+| Quote tokens | Marketplace | Billing | Synchronous at offer submission; verified locally at selection | Quote lifetime (e.g. 30 days, covers the selection period) | Lender re-submits the offer for a new quote |
 | Referral attribution | Billing | Identity | `identity.organization.created` | Event latency | Replay |
 | Activity log | Audit | Each service's local audit table | `*.audit.recorded` | Event latency | Replay from service outboxes |

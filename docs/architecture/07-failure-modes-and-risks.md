@@ -19,7 +19,7 @@ This is a failure-mode analysis of the chosen architecture ([05](05-architecture
 | R-I3 | Duplicate delivery (at-least-once) | Double charge, double snapshot | High | FF-I4 duplicate-delivery test | Inbox `(consumer, event_id)` unique; charge unique per `quote_id`; snapshot unique per `(batch, mapping_version)` | None (DB-enforced) |
 | R-I4 | Events arrive out of order (e.g. *suspended* after *reinstated*) | Stale projections | Medium | Version check metrics | `credsortaggregateversion`; consumers ignore older versions | Low |
 | R-I5 | Poison message (cannot be processed) | One consumer stalls on one item | Medium | DLQ depth > 0 alert | Bounded retries → DLQ; the queue keeps flowing; replay tool after the fix | Item delayed until fixed |
-| R-I6 | Price book changes or quote expires between display and action | Fee charged differs from fee shown | High | FF-I5; `billing.charge.held` alert | Fee-bearing actions require a valid **signed** quote; the charge equals the quote; expired → the UI re-quotes and the payer re-confirms; Billing verifies each quote exists and is unused | Payer may need to re-confirm |
+| R-I6 | Price book changes or quote expires between display and action | Fee charged differs from fee shown | High | FF-I5; `billing.charge.held` alert | Every offer carries a **signed** quote; the fee is locked when the SME selects the offer; the charge equals the quote and exists only after the lender confirms the payout; a redelivered event cannot create a second charge (inbox + unique quote) | Lender may need to resubmit an expired offer |
 | R-I7 | Two SME users select different offers at the same time | Two selected offers | High | FF-I3 concurrency test | Row lock + partial unique index in Marketplace; the loser gets 409 | None |
 | R-I8 | **One service database is restored to an earlier point** (e.g. Billing) | Charges missing for existing selections; or selections missing for existing charges | High | Reconciliation after restore | Restore runbook: restore → replay upstream outboxes since the restore point → reconcile → review "orphans" (reverse via reversal entries) → reopen traffic. Outboxes retained ≥ 35 days. | Medium: depends on runbook discipline |
 | R-I9 | A mapping rule or scorecard is edited in place | Old assessments no longer reproducible | High | FF-I2 reproducibility test | Pipeline versions are immutable; a change creates a new version ID | None |
@@ -53,7 +53,7 @@ This is a failure-mode analysis of the chosen architecture ([05](05-architecture
 |---|---|---|---|---|---|---|
 | R-A1 | **Identity or Keycloak is down** | No logins and no new context tokens; all journeys stop once tokens expire (about 2 min) | High | Health checks, issuance-error alerts | ≥ 3 replicas, own database, cached JWKS, tokens valid until expiry | **Single critical dependency, accepted** |
 | R-A2 | RabbitMQ is down | Synchronous journeys continue; fees, snapshots, notifications and audit are delayed | Medium | Outbox-lag alert | Quorum cluster; events wait safely in outboxes | Delay only |
-| R-A3 | Billing is down | New quotes unavailable → fee-bearing actions blocked unless a valid cached quote exists | Medium | Circuit-breaker alert | Quotes fetched when screens load and cached until expiry (e.g. 24 h); ≥ 2 replicas; **fail closed** by design | Accepted (never charge an undisclosed fee) |
+| R-A3 | Billing is down | Lenders cannot submit new offers (no quote); selection, payout confirmation and dispute still work | Medium | Circuit-breaker alert | Quote fetched at offer submission and stored on the offer; charge events retried over hours; ≥ 2 replicas; **fail closed** for new offers only | Accepted (never charge an undisclosed fee) |
 | R-A4 | Intelligence is down | Dashboards, assessments and new publications unavailable; matching and offers continue on published profiles | Medium | Health checks | Marketplace never needs Intelligence for matching; clear error on publication | Medium |
 | R-A5 | bexio or Accounting is down | Imports fail; the last snapshot remains | Low | Import-failure alert | Bounded retries; synthetic path unaffected | Low |
 | R-A6 | Advisory or the LLM is down | No AI explanations | Low | Circuit breaker | Template plug-in fallback | Low |
@@ -105,7 +105,7 @@ This is a failure-mode analysis of the chosen architecture ([05](05-architecture
 1. Kill the outbox relay of each service during load → no event lost after restart.
 2. Kill a RabbitMQ node during publishing → no event lost (publisher confirms + quorum).
 3. Deliver every event twice and out of order → no duplicate effects, no stale state.
-4. Billing down during publish and select → actions blocked unless a valid quote exists; no charge without a quote.
+4. Billing down at offer submission → offer blocked; Billing down after → selection and funding continue, charge arrives after recovery; no charge without a quote and a funded loan.
 5. Intelligence down → matching and offers continue; publication blocked with a clear message.
 6. Identity down for 5 minutes → existing tokens work until expiry, then a clean re-login path.
 7. bexio returns 429/503/timeouts → bounded retries, failed job, previous snapshot intact.
@@ -118,7 +118,7 @@ This is a failure-mode analysis of the chosen architecture ([05](05-architecture
 | Risk | Why accepted |
 |---|---|
 | Identity is a shared critical dependency (R-A1) | Centralized authorization is essential for confidentiality; mitigated by HA |
-| Fee-bearing actions fail closed without a valid quote (R-A3) | Integrity and transparency outrank availability |
+| Offer submission fails closed without a valid quote (R-A3) | Integrity and transparency outrank availability |
 | Revocation window of up to about 2 minutes (R-C3) | Bounded by token lifetime; deny-list usually closes it in seconds |
 | Values of permitted fields can be inferred by a lender (R-C6) | The SME consented to their use |
 | Data already received by a lender cannot be recalled (R-C12) | Inherent to disclosure; communicated to the SME |

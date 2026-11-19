@@ -1,0 +1,30 @@
+{
+  "$id": "credsort.billing.charge.status_changed.v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "charge_id": {
+      "pattern": "^[0-9a-fA-F-]{36}$",
+      "type": "string"
+    },
+    "org_id": {
+      "pattern": "^[0-9a-fA-F-]{36}$",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "RECORDED",
+        "HELD",
+        "WAIVED",
+        "CANCELLED"
+      ]
+    }
+  },
+  "required": [
+    "charge_id",
+    "org_id",
+    "status"
+  ],
+  "title": "billing.charge.status_changed",
+  "type": "object"
+}

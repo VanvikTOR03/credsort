@@ -1,0 +1,20 @@
+{
+  "$id": "credsort.billing.price_book.activated.v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "price_book_id": {
+      "pattern": "^[0-9a-fA-F-]{36}$",
+      "type": "string"
+    },
+    "version": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "price_book_id",
+    "version"
+  ],
+  "title": "billing.price_book.activated",
+  "type": "object"
+}

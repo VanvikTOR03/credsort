@@ -69,7 +69,7 @@ All ADRs are **Proposed** until the team accepts them.
 
 | ADR | Decision |
 |---|---|
-| [0013](0013-billing-and-sme-charging.md) | **SMEs are charged**: versioned price books, **signed quotes**, charges exactly as quoted; amounts TBD |
+| [0013](0013-billing-and-sme-charging.md) | **SMEs are charged only on success**: fee payable when the loan is funded (lender confirms payout, 14-day dispute window), versioned price books, **signed quotes**, charges exactly as quoted; amount TBD |
 | [0014](0014-no-loan-money-flow.md) | CredSort never holds or moves loan money; it invoices only its own fees |
 | [0019](0019-organization-types-and-delegation.md) | Organization types, fiduciary delegation and referral attribution from day one |
 

@@ -1,0 +1,25 @@
+{
+  "$id": "credsort.intelligence.assessment.failed.v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "batch_id": {
+      "pattern": "^[0-9a-fA-F-]{36}$",
+      "type": "string"
+    },
+    "org_id": {
+      "pattern": "^[0-9a-fA-F-]{36}$",
+      "type": "string"
+    },
+    "reason_code": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "org_id",
+    "batch_id",
+    "reason_code"
+  ],
+  "title": "intelligence.assessment.failed",
+  "type": "object"
+}

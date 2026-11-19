@@ -10,7 +10,7 @@
 
 ## Context
 
-Services must react to each other's facts (import completed → pipeline; offer selected → charge; membership revoked → deny-list) without synchronous coupling, without losing events, and without duplicate effects. Events must not spread confidential data.
+Services must react to each other's facts (import completed → pipeline; loan funded → charge; loan disputed → charge held; membership revoked → deny-list) without synchronous coupling, without losing events, and without duplicate effects. Events must not spread confidential data.
 
 ## Decision
 

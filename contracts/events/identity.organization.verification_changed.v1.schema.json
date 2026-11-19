@@ -1,0 +1,25 @@
+{
+  "$id": "credsort.identity.organization.verification_changed.v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "kyb_status": {
+      "enum": [
+        "UNVERIFIED",
+        "PENDING",
+        "VERIFIED",
+        "REJECTED"
+      ]
+    },
+    "org_id": {
+      "pattern": "^[0-9a-fA-F-]{36}$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "org_id",
+    "kyb_status"
+  ],
+  "title": "identity.organization.verification_changed",
+  "type": "object"
+}

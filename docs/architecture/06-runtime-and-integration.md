@@ -21,9 +21,10 @@ No other service-to-service calls are allowed (fitness function FF-E6).
 | C2 | Any service → Identity | `GET /.well-known/jwks.json` | Service | Verify context tokens | 2 s | Use cached keys (rotation overlap ≥ 24 h) |
 | C3 | Intelligence → Accounting | `GET /internal/v1/batches/{id}/ledger` | Service (event-driven job) | Claim check for the pipeline | 30 s | Message retried with backoff; then DLQ + alert |
 | C4 | Marketplace → Intelligence | `GET /internal/v1/assessments/{id}/profile-extract` | User (SME) | Publication preview and frozen PublishedProfile | 3 s | Publication blocked: "profile service unavailable, try again" |
-| C5 | Marketplace → Billing | `POST /internal/v1/quotes` | User (SME or lender) | Signed fee quotes when showing a fee-bearing action | 2 s | Show "fee unavailable"; action blocked if no valid cached quote (**fail closed**) |
+| C5 | Marketplace → Billing | `POST /internal/v1/quotes` | User (lender) | Signed SME fee quote, fetched when the lender submits an offer | 2 s | Offer cannot be submitted (**fail closed**); selection and funding use the stored quote |
 | C6 | Advisory → Intelligence | `GET /internal/v1/assessments/{id}/advisory-context` | User (SME) | Aggregates for explanations | 3 s | Explanation unavailable message |
 | C7 | Intelligence, Advisory → Billing | `GET /internal/v1/organizations/{id}/entitlements` | Service | Cache miss only (normally event-fed) | 2 s | Deny the gated feature (fail closed) |
+| C8 | Marketplace → Billing | `GET /.well-known/jwks.json` | Service | Verify quote signatures locally (cached) | 2 s | Use cached keys; selection without a verifiable quote is refused |
 
 All internal calls are **outside** database transactions and at most **one hop** behind the BFF.
 
@@ -59,16 +60,18 @@ All internal calls are **outside** database transactions and at most **one hop**
 | `intelligence.snapshot.created.v1` | Intelligence | Notification | org_id, snapshot_id, batch_id |
 | `intelligence.assessment.created.v1` | Intelligence | Notification | org_id, assessment_id, snapshot_id, versions |
 | `intelligence.assessment.failed.v1` | Intelligence | Notification | org_id, batch_id, reason_code |
-| `marketplace.application.published.v1` | Marketplace | Billing, Notification | application_id, sme_org_id, quote_ids[] |
+| `marketplace.application.published.v1` | Marketplace | Notification | application_id, sme_org_id |
 | `marketplace.application.matched.v1` | Marketplace | Notification | application_id, lender_org_ids[] |
 | `marketplace.application.withdrawn.v1` / `.closed.v1` | Marketplace | Notification | application_id |
 | `marketplace.disclosure.granted.v1` / `.revoked.v1` | Marketplace | Notification | application_id, lender_org_id?, level |
 | `marketplace.offer.submitted.v1` | Marketplace | Notification | offer_id, application_id, lender_org_id |
 | `marketplace.offer.withdrawn.v1` | Marketplace | Notification | offer_id |
-| `marketplace.offer.selected.v1` | Marketplace | Billing, Notification | offer_id, application_id, sme_org_id, lender_org_id, quote_ids[] |
+| `marketplace.offer.selected.v1` | Marketplace | Notification | offer_id, application_id, sme_org_id, lender_org_id |
+| `marketplace.loan.funded.v1` | Marketplace | Billing, Notification | loan_id, offer_id, application_id, sme_org_id, lender_org_id, funded_at, dispute_deadline |
+| `marketplace.loan.disputed.v1` / `.cancelled.v1` | Marketplace | Billing, Notification | loan_id, offer_id, sme_org_id |
 | `billing.price_book.activated.v1` | Billing | Notification (admins) | price_book_version, effective_from |
 | `billing.entitlements.changed.v1` | Billing | Intelligence, Advisory | org_id, entitlements[] |
-| `billing.charge.recorded.v1` / `.held.v1` | Billing | Notification, Audit | charge_id, org_id, quote_id |
+| `billing.charge.recorded.v1` / `.held.v1` / `.status_changed.v1` | Billing | Notification, Audit | charge_id, org_id, quote_id, status |
 | `<service>.audit.recorded.v1` | every service | Audit | actor, acting_org, on_behalf_of_org, action, resource ref, time |
 
 ### 3.3 Delivery rules
@@ -145,15 +148,13 @@ sequenceDiagram
   SME->>BFF: Open "Publish" with chosen fields
   BFF->>MKT: GET publication preview
   MKT->>FI: profile-extract(assessment, fields)
-  MKT->>BIL: quote(APPLICATION_PUBLISHED, payer = SME)
-  MKT-->>BFF: Preview "what lenders see" + signed quote
+  MKT-->>BFF: Preview "what lenders see" (no fee at publication)
   SME->>BFF: Confirm
-  BFF->>MKT: POST publication (fields, scope, quote_id)
-  MKT->>MKT: Verify quote signature + expiry · context token KYB = VERIFIED
+  BFF->>MKT: POST publication (fields, scope)
+  MKT->>MKT: Context token KYB = VERIFIED
   MKT->>FI: profile-extract (fresh, outside the transaction)
   MKT->>MKT: TX: PUBLISHED + PublishedProfile + DataDisclosure + audit + outbox
-  MKT->>MQ: application.published (quote_ids)
-  MQ->>BIL: Record charge exactly as quoted (inbox, unique quote_id)
+  MKT->>MQ: application.published
   MKT->>MKT: Async matching against saved lender criteria
   MKT->>MQ: application.matched (lender_org_ids)
 ```
@@ -169,17 +170,25 @@ sequenceDiagram
   participant BIL as Billing
   participant MQ as RabbitMQ
   L->>MKT: Open offer composer
-  MKT->>BIL: quote(OFFER_SELECTED, payer = lender) if a lender fee applies
-  L->>MKT: Submit offer (terms + accepted quote_id)
-  MKT->>MKT: TX: offer SUBMITTED (immutable) + audit + outbox
-  SME->>MKT: Open comparison
-  MKT->>BIL: quote(OFFER_SELECTED, payer = SME) per offer (cached until expiry)
+  L->>MKT: Submit offer (terms)
+  MKT->>BIL: quote(LOAN_FUNDED, payer = SME) fetched before the transaction (fail closed)
+  MKT->>MKT: TX: offer SUBMITTED (immutable, with quote) + audit + outbox
+  SME->>MKT: Open comparison (sees the expected fee per offer, "payable only if funded")
   SME->>MKT: Select offer
-  MKT->>MKT: Verify quotes locally (signature, expiry, bound to offer)
-  MKT->>MKT: TX: lock application · validate states · offer SELECTED · application OFFER_SELECTED · audit · outbox
+  MKT->>MKT: Verify the stored quote locally (JWKS signature, expiry, bound to offer)
+  MKT->>MKT: TX: lock application · validate states · offer SELECTED · quote locked · audit · outbox
   Note over MKT: Partial unique index guarantees one SELECTED offer
-  MKT->>MQ: offer.selected (quote_ids)
-  MQ->>BIL: Charges = quotes (idempotent)
+  L->>MKT: Confirm payout (loan money moves outside CredSort)
+  MKT->>MKT: TX: loan FUNDED · dispute_deadline = +14 days · audit · outbox
+  MKT->>MQ: loan.funded
+  MQ->>BIL: Charge = quote (inbox + unique quote_id; redelivery creates no second fee); payable after 14 days
+  alt SME disputes within 14 days
+    MKT->>MQ: loan.disputed
+    MQ->>BIL: Charge HELD
+  else Loan cancelled
+    MKT->>MQ: loan.cancelled
+    MQ->>BIL: Charge CANCELLED
+  end
   Note over MQ,BIL: Notification service informs both parties (no financial values)
 ```
 
@@ -208,7 +217,7 @@ sequenceDiagram
 | Publication + disclosure + profile + audit | **Strong** (one Marketplace transaction) | ACID | — | — |
 | Offer selection (one selected, states, audit) | **Strong** | Row lock + partial unique index | — | — |
 | Consent revocation vs matching | **Strong** | Same database | — | — |
-| Fee charge after publication or selection | Eventual, **guaranteed** | Outbox → inbox, unique per quote | Seconds | Daily: every `offer.selected` / `application.published` with quotes has charges |
+| Fee charge after payout confirmation | Eventual, **guaranteed** | Outbox → inbox, unique per quote; retries over hours | Seconds (hours during a Billing outage) | Daily: every funded loan has exactly one charge equal to its quote |
 | Snapshot/assessment after import | Eventual, guaranteed | Outbox → inbox → claim check | Seconds to minutes | Daily: every batch has a snapshot or a failure record |
 | Central activity log | Eventual, guaranteed | Outbox → Audit | Seconds | Daily: local vs central counts per service; hash-chain verification |
 | Notifications | Eventual, best effort with retries | Outbox → inbox | Seconds | — |

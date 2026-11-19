@@ -1,0 +1,39 @@
+{
+  "$id": "credsort.marketplace.loan.disputed.v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "application_id": {
+      "pattern": "^[0-9a-fA-F-]{36}$",
+      "type": "string"
+    },
+    "lender_org_id": {
+      "pattern": "^[0-9a-fA-F-]{36}$",
+      "type": "string"
+    },
+    "offer_id": {
+      "pattern": "^[0-9a-fA-F-]{36}$",
+      "type": "string"
+    },
+    "quote_ids": {
+      "items": {
+        "pattern": "^[0-9a-fA-F-]{36}$",
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "sme_org_id": {
+      "pattern": "^[0-9a-fA-F-]{36}$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "offer_id",
+    "application_id",
+    "sme_org_id",
+    "lender_org_id",
+    "quote_ids"
+  ],
+  "title": "marketplace.loan.disputed",
+  "type": "object"
+}

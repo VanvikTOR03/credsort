@@ -1,0 +1,26 @@
+{
+  "$id": "credsort.billing.charge.recorded.v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "charge_id": {
+      "pattern": "^[0-9a-fA-F-]{36}$",
+      "type": "string"
+    },
+    "org_id": {
+      "pattern": "^[0-9a-fA-F-]{36}$",
+      "type": "string"
+    },
+    "quote_id": {
+      "pattern": "^[0-9a-fA-F-]{36}$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "charge_id",
+    "org_id",
+    "quote_id"
+  ],
+  "title": "billing.charge.recorded",
+  "type": "object"
+}

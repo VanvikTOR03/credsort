@@ -18,9 +18,11 @@ With a database per service there are no cross-service transactions. Integrity i
 
 | Use case | Service | Atomic contents |
 |---|---|---|
-| Publish application | Marketplace | State → PUBLISHED, PublishedProfile, DataDisclosure, quote reference, local audit, outbox |
-| Submit offer | Marketplace | Immutable offer, accepted lender quote reference, audit, outbox |
-| **Select offer** | Marketplace | `SELECT … FOR UPDATE` on the application; validate states, ownership, role, quote validity; offer SELECTED; application OFFER_SELECTED; audit; outbox |
+| Publish application | Marketplace | State → PUBLISHED, PublishedProfile, DataDisclosure, local audit, outbox (no fee at publication) |
+| Submit offer | Marketplace | Immutable offer with its Billing quote (fetched before the transaction), audit, outbox |
+| **Select offer** | Marketplace | `SELECT … FOR UPDATE` on the application; validate states, ownership, role, quote signature and expiry (local); offer SELECTED; quote locked; application OFFER_SELECTED; audit; outbox |
+| **Confirm payout** | Marketplace | Lender confirms; loan FUNDED with 14-day dispute deadline; audit; outbox (`loan.funded`) |
+| Dispute / cancel loan | Marketplace | Loan DISPUTED or CANCELLED; audit; outbox (`loan.disputed` / `loan.cancelled`) |
 | Revoke disclosure | Marketplace | `revoked_at`, profile access closed, audit, outbox |
 | Persist import | Accounting | ImportBatch + entries + outbox |
 | Pipeline result | Intelligence | Snapshot + metrics + assessment + inbox + outbox |
@@ -31,13 +33,13 @@ Database guarantees as the second layer: partial unique index `UNIQUE (applicati
 **2. Cross-service effects are eventual but guaranteed**: transactional outbox → broker with publisher confirms → idempotent inbox ([ADR-0023](0023-event-driven-integration.md)). No distributed transactions, no two-phase commit, no compensating sagas for core flows.
 
 **3. Reconciliation jobs** run daily (hourly in the pilot) and alert on any mismatch:
-- every `offer.selected` / `application.published` with quotes ↔ Billing charges;
+- every funded loan ↔ exactly one Billing charge equal to its quote (disputed ↔ HELD, cancelled ↔ CANCELLED);
 - every ImportBatch ↔ a snapshot or a recorded pipeline failure;
 - local audit counts ↔ central audit counts per service; hash-chain verification.
 
 **4. Projections** of other services' data are listed with staleness bounds and rebuild procedures ([03 §6](../architecture/03-domain-model.md)).
 
-**5. No synchronous remote calls inside transactions.** Needed remote data (profile extract, quotes) is fetched before the transaction and validated inside it (immutable IDs, signatures, expiry).
+**5. No synchronous remote calls inside transactions.** Needed remote data (profile extract, offer quotes) is fetched before the transaction and validated inside it (immutable IDs, signatures, expiry).
 
 ## Alternatives considered
 
@@ -54,7 +56,7 @@ Database guarantees as the second layer: partial unique index `UNIQUE (applicati
 
 ## Compliance
 
-FF-I3 (concurrent selection), FF-I4 (duplicate delivery), FF-I5 (quote = charge), FF-I6 (reconciliation = zero mismatches), FF-I7 (audit chain).
+FF-I3 (concurrent selection), FF-I4 (duplicate delivery), FF-I5 (quote = charge, one charge per funded loan), FF-I6 (reconciliation = zero mismatches), FF-I7 (audit chain).
 
 ## Revisit when
 

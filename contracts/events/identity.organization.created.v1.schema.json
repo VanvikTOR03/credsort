@@ -1,0 +1,36 @@
+{
+  "$id": "credsort.identity.organization.created.v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "org_id": {
+      "pattern": "^[0-9a-fA-F-]{36}$",
+      "type": "string"
+    },
+    "org_type": {
+      "enum": [
+        "SME",
+        "LENDER",
+        "FIDUCIARY",
+        "PLATFORM"
+      ]
+    },
+    "referred_by_org_id": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-fA-F-]{36}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "org_id",
+    "org_type"
+  ],
+  "title": "identity.organization.created",
+  "type": "object"
+}

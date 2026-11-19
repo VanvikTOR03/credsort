@@ -1,0 +1,26 @@
+{
+  "$id": "credsort.intelligence.snapshot.created.v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "batch_id": {
+      "pattern": "^[0-9a-fA-F-]{36}$",
+      "type": "string"
+    },
+    "org_id": {
+      "pattern": "^[0-9a-fA-F-]{36}$",
+      "type": "string"
+    },
+    "snapshot_id": {
+      "pattern": "^[0-9a-fA-F-]{36}$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "org_id",
+    "snapshot_id",
+    "batch_id"
+  ],
+  "title": "intelligence.snapshot.created",
+  "type": "object"
+}

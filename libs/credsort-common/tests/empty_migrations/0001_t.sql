@@ -1,0 +1,1 @@
+create table items (id uuid primary key, org_id uuid not null, label text);alter table items enable row level security; alter table items force row level security;create policy tenant on items using (org_id = app_org() or app_role() = 'SYSTEM') with check (org_id = app_org() or app_role() = 'SYSTEM');

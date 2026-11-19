@@ -1,0 +1,9 @@
+{
+  "users": [], "vhosts": [{"name": "credsort"}],
+  "exchanges": [
+    {"name": "credsort.events", "vhost": "credsort", "type": "topic", "durable": true},
+    {"name": "credsort.dead", "vhost": "credsort", "type": "topic", "durable": true}
+  ],
+  "queues": [], "bindings": [],
+  "_note": "Consumer queues, per-delay retry queues (5s, 30s, 2m, 10m, 30m, 1h) and dead-letter queues are declared by each service at start (credsort_common.broker.RabbitMqBroker). UNVERIFIED against a live RabbitMQ."
+}

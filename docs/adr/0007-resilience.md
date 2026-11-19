@@ -27,7 +27,7 @@ With several services and external providers, partial failure is normal. Failure
 |---|---|
 | bexio | Job FAILED with a reason; the last validated snapshot stays current |
 | LLM | Template plug-in explanation, labelled as such |
-| Billing (quotes) | Use a valid cached quote; otherwise the fee-bearing action is **blocked** (fail closed) |
+| Billing (quotes) | A quote is fetched when a lender submits an offer; without a valid quote the offer cannot be submitted (fail closed). After that, selection and funding use the stored, locally verified quote, so a Billing outage does not block them. Charge events are retried over hours (5 s, 30 s, 2 min, 10 min, 30 min, 1 h, …) before a dead-letter alert. |
 | Intelligence (profile extract) | Publication blocked with a clear message; matching and offers continue |
 | Broker | Events wait in outboxes; synchronous journeys continue |
 | Identity | Existing context tokens work until expiry; new logins fail |

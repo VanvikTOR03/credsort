@@ -1,0 +1,12 @@
+{
+  "realm": "credsort", "enabled": true, "sslRequired": "external", "registrationAllowed": false,
+  "bruteForceProtected": true, "otpPolicyType": "totp",
+  "clients": [
+    {"clientId": "credsort-web", "protocol": "openid-connect", "publicClient": false, "standardFlowEnabled": true,
+     "pkceCodeChallengeMethod": "S256", "redirectUris": ["http://localhost:3000/api/auth/callback"], "webOrigins": ["http://localhost:3000"],
+     "secret": "${WEB_CLIENT_SECRET}"},
+    {"clientId": "credsort-services", "protocol": "openid-connect", "publicClient": false, "serviceAccountsEnabled": true,
+     "standardFlowEnabled": false, "secret": "${SERVICE_CLIENT_SECRET}"}
+  ],
+  "_note": "Skeleton realm. UNVERIFIED against a live Keycloak; MFA enforcement (required action CONFIGURE_TOTP) for lender users is configured per ADR-0016."
+}

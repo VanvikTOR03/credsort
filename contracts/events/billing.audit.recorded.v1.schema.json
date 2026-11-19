@@ -1,0 +1,57 @@
+{
+  "$id": "credsort.billing.audit.recorded.v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "acting_org_id": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-fA-F-]{36}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "action": {
+      "type": "string"
+    },
+    "actor_user_id": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-fA-F-]{36}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "audit_id": {
+      "pattern": "^[0-9a-fA-F-]{36}$",
+      "type": "string"
+    },
+    "on_behalf_of_org_id": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-fA-F-]{36}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "resource": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "audit_id",
+    "action",
+    "resource"
+  ],
+  "title": "billing.audit.recorded",
+  "type": "object"
+}

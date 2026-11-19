@@ -46,3 +46,10 @@ Confidentiality is the top characteristic. Even *appearing* in a filtered result
 ## Revisit when
 
 Lenders need richer search (consider banded values or SME-approved templates); or legal review adds consent expiry.
+
+## Addendum (2026-11-19): consent revocation across all services
+
+Revocation must be effective everywhere:
+- **Marketplace:** immediate through row-level security (a revoked disclosure closes the lender's access in the same transaction).
+- **Delegation revocation** (fiduciary): `identity.delegation.revoked` adds a deny-list entry (user, organization, on-behalf-of, since); tokens issued before `since` stop working at every service.
+- **Notification:** lender-facing notices that refer to the revoked access are withdrawn.

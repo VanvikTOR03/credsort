@@ -11,8 +11,8 @@
 ## Context
 
 - **Team decision (2026-11-19): SMEs will be charged.** The amount and the trigger are still open.
-- Candidate models:
-  - Basic / Light / Pro tiers (Seb);
+- Candidate models (decided: success-only SME fee, see Decision):
+  - Basic / Light / Pro tiers (Seb), not chosen;
   - an SME success fee (Gruber, 2 % example);
   - the lender success fee of 0.75 %, min CHF 2,000, cap CHF 7,500 (pitch deck; to be reconfirmed);
   - a fiduciary referral share of 20 %.
@@ -21,25 +21,31 @@
 
 ## Decision
 
+**Team decisions (2026-11-19)**
+- **The SME fee is success-only.** There is no publication fee and no subscription plan; every feature is included. A fee becomes **payable only when the loan is funded**.
+- **The lender confirms the payout** in the Marketplace (`marketplace.loan.funded`). The SME then has a **14-day dispute window**; the charge is payable after that window.
+- The fee amount is still open and stays configuration (price book).
+- CredSort never touches loan money ([ADR-0014](0014-no-loan-money-flow.md)); it records only that a loan was funded.
+
 **Model (Billing database)**
 
 | Concept | Description |
 |---|---|
-| `PriceBook` | Versioned set of rules and plans; `effective_from`; immutable once active; one active version per segment and date |
-| `FeeRule` | `payer` (SME / LENDER), `trigger` (`PLAN_SUBSCRIPTION`, `APPLICATION_PUBLISHED`, `OFFER_SELECTED`, `MANUAL`), `calculator` plug-in (`FIXED`, `PERCENT_OF_PRINCIPAL` with min/cap), currency CHF, `tax_code` |
-| `Plan`, `Entitlement` | Basic/Light/Pro-style plans and the features they unlock |
-| `Quote` | **Signed** (JWS) statement: action, subject (application or offer ID), payer, basis, amount, price-book version, expiry. Consumable once. |
-| `FeeCharge` | Immutable ledger entry created **exactly as quoted**; unique per quote; corrections via reversal entries |
-| `ReferralShare` | Share of a charge attributed to the referring fiduciary |
+| `PriceBook` | Versioned set of rules; `effective_from`; immutable once active; one active version at a time |
+| `FeeRule` | `payer` (SME / LENDER), `trigger` (`LOAN_FUNDED` only in the MVP), `calculator` plug-in (`FIXED`, `PERCENT_OF_PRINCIPAL` with min/cap), currency CHF, `tax_code` |
+| `Entitlement` | Features an organization may use; default for every SME: profile, apply, advisor, what-if |
+| `Quote` | **Signed** (RS256 JWS) statement: subject (offer ID), payer, basis, amount, price-book version, expiry. Consumable once. Status `UNPRICED` when no active price book exists. |
+| `FeeCharge` | Immutable ledger entry created **exactly as quoted**; unique per quote; states `PENDING → PAYABLE`, `HELD` (dispute), `CANCELLED` (loan cancelled); corrections via reversal entries |
+| `ReferralShare` | 20 % share of a charge attributed to the referring fiduciary |
 
 **Flow**
-1. When Marketplace shows a fee-bearing action (publish screen, offer composer, offer comparison), it requests quotes from Billing (`POST /internal/v1/quotes`) and caches them until expiry (e.g. 24 h).
-2. The payer sees the quoted amount. The action references the quote.
-3. Marketplace verifies the quote **locally** (Billing's signature, expiry, binding to the action, subject and payer) inside its transaction and emits the event with `quote_ids` via its outbox.
-4. Billing consumes the event and records a charge **equal to the quote** (inbox + unique `quote_id`). A missing, unknown or already-used quote → `billing.charge.held` + alert, never a guessed amount.
-5. **Fail closed:** without a valid quote (Billing unavailable and no cached quote), the fee-bearing action is blocked.
-6. **Amounts are configuration.** Until the team decides, the seed contains a `DRAFT` price book; the UI shows "fee to be confirmed". Changing a price = activating a new price-book version.
-7. The lender success fee remains a **configurable rule**; whether it stays active is a business decision.
+1. When a lender **submits an offer**, Marketplace requests a quote from Billing (`POST /internal/v1/quotes`, fixed call inventory entry) and stores the quote on the offer. The SME sees the expected fee next to each offer ("payable only if the loan is funded").
+2. Selecting an offer **locks** the quote. Marketplace verifies it **locally** (Billing's signature via JWKS, expiry, binding to offer, subject and payer) inside its transaction. No remote call happens inside a transaction.
+3. The lender confirms the payout (`marketplace.loan.funded`). Billing consumes the event and records the charge **equal to the quote** (inbox + unique `quote_id`, so a RabbitMQ redelivery cannot create a second fee). `payable_after = funded_at + 14 days`.
+4. If the SME disputes within 14 days, `marketplace.loan.disputed` sets the charge to `HELD`. If the loan is cancelled, `marketplace.loan.cancelled` sets it to `CANCELLED`.
+5. **Fail closed:** without a valid quote (Billing unavailable at offer submission), the offer cannot be submitted. Billing outages after submission do not affect selection or funding; events are retried over hours (see [ADR-0007](0007-resilience.md)).
+6. **Amounts are configuration.** Until the team decides, there is no active price book and the UI shows "fee to be confirmed". Changing a price = activating a new price-book version. A clearly marked **demo placeholder** price book can be activated by an operator for demos only.
+7. The lender fee remains a configurable rule; whether it is active is a business decision.
 8. **No payment collection in the MVP:** charges are exported for invoicing; a `PaymentProvider` plug-in follows in the pilot ([ADR-0003](0003-plug-in-extension-points.md)).
 9. Entitlement changes are published (`billing.entitlements.changed`) and cached by Intelligence and Advisory.
 
@@ -61,7 +67,7 @@
 
 - FF-E1: changing an amount = a new price-book version, zero code change.
 - FF-I5: recorded charge equals the quote for every fee-bearing action.
-- Reconciliation: every published application or selected offer with quotes has its charges ([ADR-0011](0011-consistency-model.md)).
+- Reconciliation: every funded loan has exactly one charge equal to its quote ([ADR-0011](0011-consistency-model.md)).
 - Neutrality: Marketplace matching code cannot access quotes or prices ([ADR-0021](0021-matching-neutrality.md)).
 
 ## Revisit when

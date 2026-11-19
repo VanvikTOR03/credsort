@@ -1,0 +1,42 @@
+{
+  "$id": "credsort.billing.charge.held.v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "org_id": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-fA-F-]{36}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "quote_id": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-fA-F-]{36}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "reason_code": {
+      "type": "string"
+    },
+    "source_event_id": {
+      "pattern": "^[0-9a-fA-F-]{36}$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "reason_code",
+    "source_event_id"
+  ],
+  "title": "billing.charge.held",
+  "type": "object"
+}

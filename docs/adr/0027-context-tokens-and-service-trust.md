@@ -50,3 +50,8 @@ Every service must authorize every request (zero trust) without calling Identity
 ## Revisit when
 
 Revocation must be instantaneous (consider token introspection for high-risk actions); or lenders federate their own IdPs.
+
+## Addendum (2026-11-19): signature keys and deny-list
+
+- Marketplace fetches Billing's public keys (JWKS) to verify quote signatures locally; this is call C8 in the synchronous call inventory ([06](../architecture/06-runtime-and-integration.md)) and is cached.
+- The deny-list entry for a revoked delegation carries `on_behalf_of`, so only tokens acting for that organization are rejected, not the fiduciary's other work.

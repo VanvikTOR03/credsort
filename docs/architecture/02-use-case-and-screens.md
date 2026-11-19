@@ -54,15 +54,15 @@ After selection, the lender and the SME complete the loan **directly** (contract
 | # | Screen | Purpose | Key content and actions | Service(s) | Priority |
 |---|---|---|---|---|---|
 | S1 | **Sign-up & company onboarding** | Account and company | Login with MFA (Keycloak); company name, UID (CHE-…), legal form, industry, employees; invite members; KYB status; referral code (fiduciary) | Identity | P0 |
-| S2 | **Plan & fees** | What the SME pays, and when | Current plan; signed fee quote for the next action ("publishing will cost …"); amounts **TBD** until decided | Billing | P0 (display) |
+| S2 | **Fees** | What the SME pays, and when | "You pay only if a loan is funded"; expected fee per offer (signed quote); charges with status (payable after 14 days, held, cancelled); amounts **TBD** until decided | Billing | P0 (display) |
 | S3 | **Data connection** | Bring accounting data in | Connect bexio (OAuth) or choose a synthetic dataset; import jobs (pending / running / completed / failed), last update, retry | Accounting Integration | P0 |
 | S4 | **Financial dashboard** | Understand the financial position | Revenue and growth, EBITDA margin, equity ratio, current ratio, Debt/EBITDA, receivables aging; trends; quality flags; *unavailable* shown as such, never as 0 | Financial Intelligence | P0 |
 | S5 | **Assessment** | Preliminary, explainable assessment | Category/score, positive and negative factors, missing information, **Data Confidence** (separate), pipeline versions, disclaimer "not a bank rating" | Financial Intelligence | P0 |
 | S6 | **AI advisor & what-if** | Explore improvements | Explanation; recommendations; scenario such as "reduce debt by CHF 200,000" with before/after (calculated deterministically, explained by AI) | Advisory + Financial Intelligence (+ Billing entitlement) | P1 |
 | S7 | **Loan application wizard** | Describe the financing need | Amount, term, purpose, collateral, additional information; draft | Marketplace | P0 |
-| S8 | **Publish & consent** | Decide what lenders may see and use | Field allowlist; recipient scope; **preview "what lenders see"** (the frozen published profile); signed fee quote; publish | Marketplace (+ Intelligence for the profile, Billing for the quote) | P0 |
+| S8 | **Publish & consent** | Decide what lenders may see and use | Field allowlist; recipient scope; **preview "what lenders see"** (the frozen published profile); publish (free) | Marketplace (+ Intelligence for the profile, Billing for the quote) | P0 |
 | S9 | **Offers & comparison** | Compare offers | Rate, fees, amount, maturity, repayment schedule, collateral, **total financing cost**, CredSort fee per offer; illustrative fair-rate band (P1); sort by the SME's chosen key | Marketplace (+ Billing quotes) | P0 (band P1) |
-| S10 | **Select offer** | Choose exactly one | Confirmation, conflict handling ("offer no longer available", "fee quote expired, please confirm the new quote") | Marketplace | P0 |
+| S10 | **Select offer** | Choose exactly one | Confirmation, conflict handling ("offer no longer available", "this offer's quote has expired, ask the lender to resubmit") | Marketplace | P0 |
 | S11 | **Access requests** | Control full disclosure | A lender requests full access → approve or deny per lender; revoke (copies already received cannot be recalled) | Marketplace | P0 |
 | S12 | **Activity log** | Transparency about data use | Who viewed or used which data and when, across all services | Audit | P0 |
 | S13 | **Settings** | Members, roles, connections | Invite or remove members, roles, MFA, disconnect bexio | Identity, Accounting Integration | P0 |
@@ -105,7 +105,8 @@ After selection, the lender and the SME complete the loan **directly** (contract
 | Element | Status | Source |
 |---|---|---|
 | **SMEs are charged** | **Decided.** Amount and trigger TBD. | Team decision 2026-11-19 |
-| SME tiers Basic (free) / Light (one-off fee per financing request) / Pro (annual subscription) | Candidate | Seb, Business Model canvas |
+| SME tiers Basic / Light / Pro | **Not adopted** (team decision 2026-11-19: success-only fee, all features included) | Seb, Business Model canvas |
+| **SME success fee**, payable only when the loan is funded; lender confirms payout; SME has a 14-day dispute window; amount TBD | **Decided (trigger), amount open** | Team 2026-11-19 |
 | SME success fee (2 % example: CHF 10,000 on CHF 500,000) | Candidate | Gruber §3 |
 | Lender success fee 0.75 % (min CHF 2,000, cap CHF 7,500), disclosed to the SME | Earlier working assumption; **to be reconfirmed** | Pitch deck, canvas |
 | Fiduciary referral share: 20 % of CredSort's fee | Working assumption | Master Plan, canvas |
