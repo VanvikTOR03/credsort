@@ -9,9 +9,9 @@ export default function Loans() {
   const list = (apps.data ?? []).filter((a) => a.status !== "WITHDRAWN");
   return (
     <div className="stack-l">
-      <PageHeader title="Loans" subtitle="Your requests and the offers that came in." actions={list.length ? <Button size="sm" href="/sme/loans/new" icon="plus">New</Button> : undefined} />
+      <PageHeader title="Loans" actions={list.length ? <Button size="sm" href="/sme/loans/new" icon="plus">New</Button> : undefined} />
       {apps.loading ? <ListSkeleton rows={2} /> : list.length === 0 ? (
-        <Card><Empty icon="loan" color="orange" title="No loan request yet" text="Tell us how much you need. Matching lenders can then make you offers. It is free until a loan is funded." action={<Button href="/sme/loans/new">Start a request</Button>} /></Card>
+        <Card><Empty icon="loan" color="orange" title="No loan request yet" action={<Button href="/sme/loans/new">Start a request</Button>} /></Card>
       ) : (
         <List>{list.map((a) => {
           const st = APP_STATUS[a.status] ?? { label: a.status, tone: undefined };

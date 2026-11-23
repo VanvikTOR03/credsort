@@ -21,7 +21,7 @@ export function MorePage({ extra, danger }: { extra?: React.ReactNode; danger?: 
           <Row icon="building" color="gray" title="Organization" sub={s.org.name} value={<Pill tone={s.org.kyb_status === "VERIFIED" ? "green" : "orange"}>{s.org.kyb_status === "VERIFIED" ? "Verified" : s.org.kyb_status.toLowerCase()}</Pill>} />
         </List>
       </Section>
-      <Section title="Account" footer="Demo mode: this build signs you in with a demo profile instead of a password.">
+      <Section title="Account">
         <List>
           <Row icon="logout" color="gray" title="Sign out" onClick={signOut} />
           {danger && <Row icon="trash" color="red" title="Delete my data" sub="Ask us to erase your organization" onClick={() => setDel(true)} />}

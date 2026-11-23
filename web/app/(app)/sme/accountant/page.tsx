@@ -15,11 +15,11 @@ export default function Accountant() {
   }
   return (
     <div className="stack-l">
-      <PageHeader title="Accountant" back="/sme/more" subtitle="Let your fiduciary prepare requests for you." />
-      <Section title="Who has access" footer="Your accountant can view your profile and prepare applications. They cannot choose offers or change your sharing.">
+      <PageHeader title="Accountant" back="/sme/more" />
+      <Section title="Who has access">
         {d.loading ? <ListSkeleton rows={1} /> : d.data?.filter((x) => !x.revoked_at).length ? (
           <List>{d.data.filter((x) => !x.revoked_at).map((x) => <Row key={x.id} icon="people" color="green" title={x.fiduciary_name} sub={`Since ${ago(x.granted_at)}`}><Button size="sm" variant="danger-soft" onClick={async () => { await api("identity", `/v1/delegations/${x.id}`, { method: "DELETE" }); invalidate("identity"); toast("Access removed"); }}>Remove</Button></Row>)}</List>
-        ) : <Card><Empty icon="people" color="green" title="No one yet" text="Enter the referral code your accountant gave you." /></Card>}
+        ) : <Card><Empty icon="people" color="green" title="No one yet" /></Card>}
       </Section>
       <Section title="Add your accountant">
         <List><Field label="Referral code"><input value={code} onChange={(e) => setCode(e.target.value)} placeholder="CS-XXXXXX" autoCapitalize="characters" /></Field></List>

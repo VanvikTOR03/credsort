@@ -23,8 +23,8 @@ export default function LenderOffers() {
   ].filter((g) => g.items.length);
   return (
     <div className="stack-l">
-      <PageHeader title="Offers" subtitle="Everything you have offered, and what needs you." />
-      {offers.loading ? <ListSkeleton rows={2} /> : !groups.length ? <Card><Empty icon="loan" color="orange" title="No offers yet" text="Open a match and make an offer. It takes about a minute." action={<Button href="/lender">See matches</Button>} /></Card> : groups.map((g) => (
+      <PageHeader title="Offers" />
+      {offers.loading ? <ListSkeleton rows={2} /> : !groups.length ? <Card><Empty icon="loan" color="orange" title="No offers yet" action={<Button href="/lender">See matches</Button>} /></Card> : groups.map((g) => (
         <Section key={g.title} title={g.title}>
           <div className="stack">{g.items.map((o) => { const st = OFFER_STATUS[o.status] ?? { label: o.status, tone: undefined };
             return (

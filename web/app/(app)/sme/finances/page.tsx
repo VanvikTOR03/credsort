@@ -16,7 +16,7 @@ function Inner() {
   const setTab = (t: Tab) => router.replace(t === "score" ? "/sme/finances" : `/sme/finances?tab=${t}`, { scroll: false });
   return (
     <div className="stack-l">
-      <PageHeader title="Finances" subtitle="Your numbers, your score, your what-ifs." />
+      <PageHeader title="Finances" />
       <div className="center"><Seg label="Finance sections" value={tab} onChange={setTab} options={[{ value: "score", label: "Score" }, { value: "whatif", label: "What-if" }, { value: "data", label: "Data" }]} /></div>
       {tab === "score" && <ScoreTab goData={() => setTab("data")} />}
       {tab === "whatif" && <WhatIfTab />}
@@ -35,7 +35,7 @@ function ScoreTab({ goData }: { goData: () => void }) {
   const [open, setOpen] = useState<string | null>(null);
 
   if (list.loading) return <div className="stack"><Skeleton h={190} r={20} /><ListSkeleton rows={4} /></div>;
-  if (!id) return <Card><Empty icon="plug" color="accent" title="No numbers yet" text="Connect your accounting and we will calculate your score within seconds." action={<Button onClick={goData}>Connect accounting</Button>} /></Card>;
+  if (!id) return <Card><Empty icon="plug" color="accent" title="No numbers yet" action={<Button onClick={goData}>Connect accounting</Button>} /></Card>;
   const a = detail.data?.assessment;
   const metrics: any[] = detail.data?.metrics ?? [];
   const byCode = Object.fromEntries(metrics.map((m) => [m.code, m]));
@@ -69,7 +69,7 @@ function ScoreTab({ goData }: { goData: () => void }) {
       )}
 
       {a && (
-        <Section title="What drives your score" footer="Tap a row to see what it means.">
+        <Section title="What drives your score">
           <List>
             {a.factors.map((f: any) => (
               <button className="row noicon" key={f.code} onClick={() => setOpen(f.code)} style={{ flexDirection: "column", alignItems: "stretch", gap: 8 }}>
@@ -118,7 +118,7 @@ function WhatIfTab() {
   }, [id, rev, cost, debt]);
 
   if (list.loading) return <Skeleton h={300} r={20} />;
-  if (!id) return <Card><Empty icon="sliders" color="indigo" title="Nothing to play with yet" text="Connect your accounting first. Then you can see how changes would move your score." /></Card>;
+  if (!id) return <Card><Empty icon="sliders" color="indigo" title="Nothing to play with yet" /></Card>;
   const b = res?.before.assessment, a = res?.after.assessment;
   const delta = a && b ? a.score - b.score : 0;
   const slider = (label: string, v: number, set: (n: number) => void, min: number, max: number, step: number, unit: string) => (
@@ -188,9 +188,9 @@ function DataTab() {
               {c.status === "ACTIVE" && <Button size="sm" variant="secondary" onClick={async () => { await api("accounting", "/v1/import-jobs", { method: "POST", body: { connection_id: c.id } }); invalidate(); toast("Refreshing your numbers"); }}>Refresh</Button>}
             </Row>
           ))}</List>
-        ) : <Card><Empty icon="plug" color="accent" title="Connect your accounting" text="We read your numbers once, check them, and keep them private until you choose who sees what." /></Card>}
+        ) : <Card><Empty icon="plug" color="accent" title="Connect your accounting" /></Card>}
       </Section>
-      <Section title="Add a source" footer="We only read figures. We cannot change anything in your books, and you can disconnect at any time.">
+      <Section title="Add a source">
         <List>
           <Row icon="plug" color="blue" title="bexio" sub="Connect your real accounting" onClick={connectBexio} />
           <Row icon="doc" color="gray" title="Try demo data" sub="Explore CredSort with a sample company" onClick={() => setSheet(true)} />

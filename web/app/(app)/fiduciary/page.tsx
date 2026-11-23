@@ -16,11 +16,11 @@ export default function Clients() {
   }
   return (
     <div className="stack-l">
-      <PageHeader title="Clients" subtitle="Companies that gave you access." />
-      {clients.loading ? <ListSkeleton rows={2} /> : !clients.data?.length ? <Card><Empty icon="people" color="green" title="No clients yet" text="Share your referral code. Clients enter it in their app to give you access." /></Card> : (
+      <PageHeader title="Clients" />
+      {clients.loading ? <ListSkeleton rows={2} /> : !clients.data?.length ? <Card><Empty icon="people" color="green" title="No clients yet" /></Card> : (
         <List>{clients.data.map((c) => <Row key={c.id} icon="building" color="orange" title={c.sme_name} sub={c.scopes.includes("PREPARE_APPLICATION") ? "Can view and prepare applications" : "Can view the profile"}><Button size="sm" onClick={() => work(c)}>Open</Button></Row>)}</List>
       )}
-      {org.data?.referral_code && <Section title="Your referral code" footer="Clients enter this code under More, then Accountant."><Card className="hstack spread"><b className="num t-title" style={{ letterSpacing: ".04em" }}>{org.data.referral_code}</b><Button size="sm" variant="secondary" onClick={() => { navigator.clipboard?.writeText(org.data.referral_code); toast("Code copied"); }}>Copy</Button></Card></Section>}
+      {org.data?.referral_code && <Section title="Your referral code"><Card className="hstack spread"><b className="num t-title" style={{ letterSpacing: ".04em" }}>{org.data.referral_code}</b><Button size="sm" variant="secondary" onClick={() => { navigator.clipboard?.writeText(org.data.referral_code); toast("Code copied"); }}>Copy</Button></Card></Section>}
     </div>
   );
 }

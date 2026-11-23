@@ -12,7 +12,7 @@ export default function Notifications() {
   return (
     <div className="stack-l">
       <PageHeader title="Notifications" subtitle={n.data?.unread ? `${n.data.unread} new` : "You are all caught up."} actions={n.data?.unread ? <Button size="sm" variant="plain" onClick={async () => { await api("notification", "/v1/notifications/read-all", { method: "POST" }); invalidate("notification"); }}>Mark all read</Button> : undefined} />
-      {n.loading ? <ListSkeleton rows={4} /> : !n.data?.items.length ? <Card><Empty icon="bell" color="red" title="Nothing yet" text="We will tell you when something needs your attention." /></Card> : (
+      {n.loading ? <ListSkeleton rows={4} /> : !n.data?.items.length ? <Card><Empty icon="bell" color="red" title="Nothing yet" /></Card> : (
         <List>{n.data.items.map((x) => { const [icon, color] = ICON[x.kind] ?? ["bell", "red"];
           return <Row key={x.id} icon={icon} color={color} onClick={() => open(x)} title={<span style={{ fontWeight: x.read_at ? 500 : 700 }}>{x.title}</span>} sub={`${x.body} · ${ago(x.created_at)}`} value={!x.read_at ? <span className="tile xs c-blue" style={{ width: 10, height: 10 }} /> : undefined} />; })}</List>
       )}

@@ -31,17 +31,17 @@ export default function Criteria() {
   }
   return (
     <div className="stack-l">
-      <PageHeader title="Criteria" subtitle="Tell us what you like to fund. We only match on what companies chose to share." />
+      <PageHeader title="Criteria" />
       <Section title="Loan size (CHF)"><List><Field label="From"><input inputMode="numeric" value={c.amount_min ?? ""} onChange={(e) => set("amount_min", e.target.value.replace(/[^\d]/g, ""))} placeholder="100000" /></Field><Field label="To"><input inputMode="numeric" value={c.amount_max ?? ""} onChange={(e) => set("amount_max", e.target.value.replace(/[^\d]/g, ""))} placeholder="No limit" /></Field></List></Section>
       <Section title="Lowest category you accept"><div className="center"><Seg label="Lowest category" options={CATS} value={c.min_assessment_category} onChange={(v) => set("min_assessment_category", v)} /></div><p className="t-foot center" style={{ marginTop: 8 }}>A is strongest. {c.min_assessment_category} or better will match.</p></Section>
-      <Section title="Industries" footer="Leave all off to accept any industry.">
+      <Section title="Industries">
         <div className="hstack wrap">{INDUSTRIES.map((i) => <button key={i} className="chip" aria-pressed={c.industries.includes(i)} onClick={() => set("industries", c.industries.includes(i) ? c.industries.filter((x: string) => x !== i) : [...c.industries, i])}>{i[0].toUpperCase() + i.slice(1)}</button>)}</div>
       </Section>
       <Button variant="secondary" onClick={() => setMore(!more)}>{more ? "Hide" : "Show"} more filters</Button>
       {more && (
         <div className="stack-l enter">
           <Section title="Financial limits"><List>{RANGE.map((r) => <Field key={r.key} label={r.label} hint={r.hint}><input inputMode="decimal" value={c[r.kind]?.[r.key] ?? ""} onChange={(e) => setRange(r.kind, r.key, e.target.value)} placeholder="Any" /></Field>)}</List></Section>
-          <Section title="What matters most" footer="Higher means it counts more when we rank matches. 0 ignores it.">
+          <Section title="What matters most">
             <Card className="stack">{WEIGHTS.map((w) => <div key={w.key} className="stack-s"><div className="hstack spread"><label>{w.label}</label><b className="num">{c.weights?.[w.key] ?? 0}</b></div><input type="range" min={0} max={5} step={1} value={c.weights?.[w.key] ?? 0} onChange={(e) => set("weights", { ...c.weights, [w.key]: Number(e.target.value) })} aria-label={w.label} /></div>)}</Card>
           </Section>
         </div>

@@ -2,6 +2,7 @@ import React from "react";
 
 // A small, consistent glyph set: filled, rounded, one idea per icon (recognition over recall).
 const G: Record<string, React.ReactNode> = {
+  sortmark: <><rect x="3.5" y="5.5" width="17" height="2.6" rx="1.3" /><rect x="6.5" y="10.7" width="11" height="2.6" rx="1.3" /><rect x="9.2" y="15.9" width="5.6" height="2.6" rx="1.3" /></>,
   home: <path d="M12 3.1 3.2 10.4a1 1 0 0 0-.4.8V20a1 1 0 0 0 1 1H9v-5.5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1V21h5.2a1 1 0 0 0 1-1v-8.8a1 1 0 0 0-.4-.8L12 3.1z" />,
   chart: <><rect x="3.5" y="12" width="4.4" height="8.5" rx="1.4" /><rect x="9.8" y="7" width="4.4" height="13.5" rx="1.4" /><rect x="16.1" y="3" width="4.4" height="17.5" rx="1.4" /></>,
   loan: <path fillRule="evenodd" d="M5.5 6h13A2.5 2.5 0 0 1 21 8.5v7a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 15.5v-7A2.5 2.5 0 0 1 5.5 6zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM5.6 9.4a.9.9 0 1 0 0 1.8.9.9 0 0 0 0-1.8zm12.8 3.4a.9.9 0 1 0 0 1.8.9.9 0 0 0 0-1.8z" />,
@@ -62,6 +63,12 @@ export function Icon({ name, className, title }: { name: IconName | string; clas
 }
 
 /** iOS-style app-icon tile: squircle, vertical gradient, inner highlight, soft coloured shadow. */
-export function Tile({ name, color = "blue", size, className = "" }: { name: IconName | string; color?: string; size?: "xs" | "sm" | "lg" | "xl"; className?: string }) {
-  return <span className={`tile c-${color} ${size ?? ""} ${className}`}><Icon name={name} /></span>;
+/** iOS-style app icon. `color` is accepted for compatibility and ignored: every icon is navy. */
+export function Tile({ name, size, className = "" }: { name: IconName | string; color?: string; size?: "xs" | "sm" | "lg" | "xl"; className?: string }) {
+  return <span className={`tile ${size ?? ""} ${className}`}><Icon name={name} /></span>;
+}
+
+/** The one CredSort mark, used everywhere (sign-in, onboarding, app header). */
+export function Logo({ size = "sm" }: { size?: "xs" | "sm" | "lg" }) {
+  return <span className="logo"><Tile name="sortmark" size={size} />CredSort</span>;
 }

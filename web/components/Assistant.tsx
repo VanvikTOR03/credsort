@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { api, useApi } from "@/lib/client/api";
-import { Icon } from "./Icon";
+import { Tile } from "./Icon";
 import { Sheet } from "./ui";
 
 type Msg = { role: "user" | "assistant"; content: string };
@@ -33,11 +33,10 @@ export function Assistant() {
 
   return (
     <>
-      <button className="fab" onClick={() => setOpen(true)} aria-label="Ask the assistant"><span className="tile sm c-blue"><Icon name="spark" /></span>Assistant</button>
-      <Sheet open={open} onClose={() => setOpen(false)} title="Your assistant">
+      <button className="fab" onClick={() => setOpen(true)} aria-label="Ask the assistant"><Tile name="spark" /></button>
+      <Sheet open={open} onClose={() => setOpen(false)} title="Assistant">
         <div className="stack">
-          <p className="t-foot">Ask how to strengthen your profile. I only use your own figures and cannot promise a loan or a rate.</p>
-          {!assessmentId && !assess.loading && <div className="banner info">Connect your accounting first, then I can look at your numbers.</div>}
+          {!assessmentId && !assess.loading && <div className="banner">Add your accounts first.</div>}
           <div className="chat-log" aria-live="polite">
             {msgs.length === 0 && <div className="hstack wrap">{SUGGESTIONS.map((s) => <button key={s} className="chip" onClick={() => send(s)} disabled={!assessmentId}>{s}</button>)}</div>}
             {msgs.map((m, i) => <div key={i} className={`bubble ${m.role === "user" ? "me" : "bot"}`}>{m.content}</div>)}
@@ -49,7 +48,7 @@ export function Assistant() {
             <input className="in" value={text} onChange={(e) => setText(e.target.value)} placeholder="Ask a question" maxLength={600} aria-label="Your question" disabled={!assessmentId} />
             <button className="btn" type="submit" disabled={busy || !text.trim() || !assessmentId}>Send</button>
           </form>
-          <p className="t-cap">AI-generated, preliminary and not financial advice.</p>
+          <p className="t-cap">AI-generated. Not financial advice.</p>
         </div>
       </Sheet>
     </>

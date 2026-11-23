@@ -14,13 +14,13 @@ export default function Review() {
   const rest = (orgs.data ?? []).filter((o) => o.kyb_status !== "PENDING" && o.type !== "PLATFORM");
   return (
     <div className="stack-l">
-      <PageHeader title="Review" subtitle="Companies and lenders waiting to be verified." />
+      <PageHeader title="Review" />
       <Section title={`Waiting (${pending.length})`}>
         {orgs.loading ? <ListSkeleton rows={2} /> : pending.length ? (
           <div className="stack">{pending.map((o) => { const [i, c] = ICON[o.type] ?? ICON.SME; return (
             <Card key={o.id} className="stack enter"><div className="hstack"><Tile name={i} color={c} /><div className="grow"><b className="t-head">{o.legal_name}</b><div className="t-foot">{o.type.toLowerCase()} · {o.uid ?? "no UID"} · {ago(o.created_at)}</div></div></div>
               <div className="hstack"><div className="grow"><Button block variant="danger-soft" onClick={() => act(o.id, "reject", "Rejected")}>Reject</Button></div><div className="grow"><Button block onClick={() => act(o.id, "verify", "Verified")}>Verify</Button></div></div></Card>); })}</div>
-        ) : <Card><Empty icon="check" color="green" title="All caught up" text="No organizations are waiting for review." /></Card>}
+        ) : <Card><Empty icon="check" color="green" title="All caught up" /></Card>}
       </Section>
       <Section title="Everyone else">
         <List>{rest.map((o) => { const [i, c] = ICON[o.type] ?? ICON.SME; return (

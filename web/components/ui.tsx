@@ -143,23 +143,16 @@ export function Success({ title, text, children }: { title: string; text?: strin
   );
 }
 
-/** Large collapsing title (iOS). The compact title fades into the blurred bar once the large title scrolls away. */
+/** Plain title row. Back link above, actions on the right. Only dynamic (non-string) subtitles are shown: no marketing copy. */
 export function PageHeader({ title, subtitle, back, actions }: { title: string; subtitle?: React.ReactNode; back?: string; actions?: React.ReactNode }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [scrolled, setScrolled] = useState(false);
-  useEffect(() => {
-    const el = ref.current; if (!el) return;
-    const io = new IntersectionObserver(([e]) => setScrolled(!e.isIntersecting), { rootMargin: "-56px 0px 0px 0px" });
-    io.observe(el); return () => io.disconnect();
-  }, []);
   return (
-    <>
-      <header className={`navbar ${scrolled ? "scrolled" : ""}`}>
-        {back && <Link href={back} className="btn plain nav-back" aria-label="Back"><Icon name="back" className="" /></Link>}
-        <span className="nav-title">{title}</span>
-        <div className="nav-actions">{actions}</div>
-      </header>
-      <div className="large-title" ref={ref}><h1 className="t-large">{title}</h1>{subtitle && <p className="muted">{subtitle}</p>}</div>
-    </>
+    <div className="title-row">
+      <div>
+        {back && <Link href={back} className="back"><Icon name="back" />Back</Link>}
+        <h1>{title}</h1>
+        {subtitle && typeof subtitle !== "string" && <div className="sub">{subtitle}</div>}
+      </div>
+      {actions && <div className="hstack">{actions}</div>}
+    </div>
   );
 }

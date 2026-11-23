@@ -38,13 +38,13 @@ export default function LenderApp() {
   return (
     <div className="stack-l">
       <PageHeader title={d.fields.company_name ?? "Company"} back="/lender" subtitle={`${d.fields.requested_amount ? chf(d.fields.requested_amount) + " · " : ""}${d.fields.industry ?? ""} · figures as of ${d.as_of}`} />
-      {sent && <Card><Success title="Offer sent" text="The company can now compare it with others. You will hear when they choose."><Button onClick={() => router.push("/lender/offers")}>View my offers</Button></Success></Card>}
+      {sent && <Card><Success title="Offer sent"><Button onClick={() => router.push("/lender/offers")}>View my offers</Button></Success></Card>}
       {!sent && (
         <div className="hstack">
           <div className="grow">{d.my_offer ? <Button block variant="secondary" href="/lender/offers">You already made an offer</Button> : <Button block onClick={() => { setF({ ...f, amount: String(Math.round(Number(d.fields.requested_amount ?? 0)) || "") }); setOffer(true); }}>Make an offer</Button>}</div>
         </div>
       )}
-      <Section title="Company profile" footer="Companies on CredSort disclose their full profile when they request offers.">
+      <Section title="Company profile">
         <List>{fields.map(([k, v]) => <Row key={k} noicon title={d.labels[k] ?? k} value={<b style={{ color: "var(--label)" }}>{show(k, v)}</b>} />)}</List>
       </Section>
       {d.match && (

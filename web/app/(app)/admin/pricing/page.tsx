@@ -19,7 +19,7 @@ export default function Pricing() {
   async function activate(id: string) { try { await api("billing", `/v1/admin/price-books/${id}/activate`, { method: "POST", body: {} }); invalidate(); toast("Price book activated"); } catch (e: any) { toast(e.detail, "error"); } }
   return (
     <div className="stack-l">
-      <PageHeader title="Pricing" subtitle="Price books are versioned. Active ones never change." actions={<Button size="sm" icon="plus" onClick={() => setOpen(true)}>New</Button>} />
+      <PageHeader title="Pricing" actions={<Button size="sm" icon="plus" onClick={() => setOpen(true)}>New</Button>} />
       {books.loading ? <ListSkeleton rows={2} /> : <div className="stack">{(books.data ?? []).map((b) => (
         <Card key={b.id} className="stack enter">
           <div className="hstack spread"><b className="t-head">Version {b.version}</b><span className="hstack" style={{ gap: 6 }}>{b.is_placeholder && <Pill tone="orange">Demo prices</Pill>}<Pill tone={b.status === "ACTIVE" ? "green" : b.status === "DRAFT" ? "blue" : undefined}>{b.status.toLowerCase()}</Pill></span></div>

@@ -15,16 +15,15 @@ export default function Privacy() {
   async function revokeAll() { setErr(null); try { await api("marketplace", "/v1/disclosures/revoke-all", { method: "POST" }); invalidate(); setConfirmAll(false); toast("You stopped sharing with everyone"); } catch (e: any) { setErr(e); } }
   return (
     <div className="stack-l">
-      <PageHeader title="Privacy" subtitle="See who can view your profile. You can stop sharing at any time." />
-      <div className="banner info"><Tile name="lock" color="indigo" size="sm" /><div>When you request offers, matching lenders see your full profile: figures, rating and company name. Lenders that do not match your request see nothing.</div></div>
+      <PageHeader title="Privacy" />
       <Section title="Currently shared">
         {disclosures.loading ? <ListSkeleton rows={2} /> : disclosures.data?.length ? (
           <List>{disclosures.data.map((d) => (
-            <Row key={d.id} icon="eye" color="indigo" title="Matching lenders" sub={`Full profile · since ${ago(d.granted_at)}`}><Button size="sm" variant="danger-soft" onClick={() => revoke(d.id)}>Stop</Button></Row>))}</List>
-        ) : <Card><Empty icon="lock" color="green" title="Nothing is shared" text="Lenders see nothing about you until you request offers." /></Card>}
+            <Row key={d.id} icon="eye" color="indigo" title="Matching lenders" sub={`Since ${ago(d.granted_at)}`}><Button size="sm" variant="danger-soft" onClick={() => revoke(d.id)}>Stop</Button></Row>))}</List>
+        ) : <Card><p className="muted" style={{ padding: "20px 0" }}>Nothing is shared</p></Card>}
       </Section>
       {!!disclosures.data?.length && <Button block variant="danger-soft" onClick={() => setConfirmAll(true)}>Stop sharing with everyone</Button>}
-      <Section title="Activity" footer="A tamper-evident record of what happened to your data.">
+      <Section title="Activity">
         {activity.loading ? <ListSkeleton rows={3} /> : activity.data?.length ? (
           <List>{activity.data.slice(0, 12).map((a) => <Row key={a.id} icon="clock" color="gray" title={a.label} sub={`${a.by === "you" ? "You" : a.by === "platform" ? "CredSort" : "Someone else"} · ${ago(a.occurred_at)}`} />)}</List>
         ) : <Card><p className="muted center">No activity yet.</p></Card>}
