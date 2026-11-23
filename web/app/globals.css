@@ -260,3 +260,13 @@ a.row:active, button.row:active { background: var(--line-2); }
 .stack-l > *:nth-child(2) { animation-delay: 40ms; } .stack-l > *:nth-child(3) { animation-delay: 80ms; } .stack-l > *:nth-child(4) { animation-delay: 120ms; }
 .stack-l > *:nth-child(5) { animation-delay: 160ms; } .stack-l > *:nth-child(n+6) { animation-delay: 200ms; }
 .two-col > * { animation: rise .4s var(--ease) both; } .two-col > *:nth-child(2) { animation-delay: 60ms; } .two-col > *:nth-child(3) { animation-delay: 120ms; }
+
+/* ---------- account menu ---------- */
+.menu { padding: 8px; min-width: 270px; border-radius: 16px; gap: 4px; border: 1px solid rgba(2,12,35,.06); box-shadow: 0 1px 2px rgba(2,12,35,.05), 0 18px 40px -10px rgba(2,12,35,.28); transform-origin: top right; animation: menu-in .18s var(--ease); }
+@keyframes menu-in { from { opacity: 0; transform: scale(.96) translateY(-4px); } }
+.menu-head { display: flex; align-items: center; gap: 12px; padding: 10px 10px 12px; border-bottom: 1px solid var(--line-2); margin-bottom: 4px; }
+.avatar-btn.static { flex: none; display: grid; place-items: center; cursor: default; background: var(--bg-2); } .avatar-btn.static:hover { border-color: var(--line); }
+.menu-list { display: flex; flex-direction: column; gap: 2px; }
+.menu-item { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px; border: 0; border-radius: 10px; background: transparent; font: inherit; font-weight: 500; color: var(--ink); cursor: pointer; text-align: left; text-decoration: none; transition: background .12s, transform .12s var(--ease); }
+.menu-item:hover { background: var(--bg-2); } .menu-item:active { background: var(--line-2); transform: scale(.985); }
+.menu-item .chev { margin-left: auto; }

@@ -74,10 +74,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <button className="avatar-btn" onClick={() => setMenu(!menu)} aria-label="Account" aria-expanded={menu}>{initials(s.user.name)}</button>
                 {menu && (
                   <div className="menu" role="menu">
-                    <div><div className="t-head">{s.user.name}</div><div className="t-foot">{s.org.name}</div></div>
-                    <hr className="sep" />
-                    <Link href={`${HOME[kind]}/more`} role="menuitem">Settings</Link>
-                    <Button size="sm" variant="secondary" onClick={signOut}>Sign out</Button>
+                    <div className="menu-head"><span className="avatar-btn static">{initials(s.user.name)}</span><div style={{ minWidth: 0 }}><div className="t-head">{s.user.name}</div><div className="t-foot">{s.org.name}</div></div></div>
+                    <div className="menu-list">
+                      <Link href={`${HOME[kind]}/more`} className="menu-item" role="menuitem"><Tile name="sliders" size="xs" />Settings<Icon name="chevron" className="chev" /></Link>
+                      <button type="button" className="menu-item" role="menuitem" onClick={signOut}><Tile name="logout" size="xs" />Sign out</button>
+                    </div>
                   </div>
                 )}
               </div>
