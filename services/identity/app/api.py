@@ -27,6 +27,7 @@ class OrgCreate(BaseModel):
     legal_form: Literal["AG", "GmbH", "Other"] | None = None
     industry: str | None = Field(default=None, max_length=60)
     employees: int | None = Field(default=None, ge=0, le=100000)
+    canton: str | None = Field(default=None, pattern=r"^[A-Z]{2}$")
     referral_code: str | None = None
 
 
@@ -67,12 +68,17 @@ def build_router(db: Database, sec: Security, keystore: KeyStore, kyb: KybProvid
     @r.post("/v1/organizations", status_code=201)
     def create_org(body: OrgCreate, who: UserIdentity = Depends(user_identity)):
         return svc.create_organization(db, kyb, who, org_type=body.type, legal_name=body.legal_name, uid=body.uid, legal_form=body.legal_form,
-                                       industry=body.industry, employees=body.employees, referral_code=body.referral_code)
+                                       industry=body.industry, employees=body.employees, canton=body.canton, referral_code=body.referral_code)
 
     # ---- context-token endpoints ----
     @r.get("/v1/organizations/current")
     def current(ctx: AccessContext = Depends(ctx_dep)):
         return svc.current_org(db, ctx)
+
+    @r.get("/v1/public/referrals/{code}")
+    def public_referral(code: str):
+        """Before sign-up: the name of the fiduciary an invitation code belongs to (nothing else). Rate-limited at the edge."""
+        return {"name": svc.lookup_referral(db, code)["name"]}
 
     @r.get("/v1/referrals/{code}")
     def referral(code: str, ctx: AccessContext = Depends(ctx_dep)):

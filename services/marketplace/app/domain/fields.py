@@ -15,7 +15,9 @@ MARKETPLACE_FIELDS = {
     "purpose": "Purpose", "collateral": "Collateral", "company_name": "Company name",
 }
 CATALOGUE = {**MARKETPLACE_FIELDS, **INTELLIGENCE_FIELDS}
-# Pre-selected on the publish screen: the minimum useful, privacy-preserving set. Company name is never a default.
+# Companies disclose EVERYTHING in the catalogue when they apply (team decision 2026-11-23); lenders filter with their own criteria.
+FULL_DISCLOSURE = list(CATALOGUE)
+# Kept for the lender criteria screen: the fields most lenders filter on.
 SUMMARY_DEFAULT = ["requested_amount", "term_months", "industry", "assessment_category", "confidence_band", "revenue_band", "employees_band"]
 
 

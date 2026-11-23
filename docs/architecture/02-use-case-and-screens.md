@@ -32,7 +32,7 @@ flowchart LR
     S4 --> S5["Assessment + Data Confidence"]
     S5 --> S6["AI advisor / what-if (P1)"]
     S5 --> S7["Loan application"]
-    S7 --> S8["Publish: choose permitted fields, see fee quote"]
+    S7 --> S8["Request offers: set the loan, agree to share the full profile"]
     S9["Compare offers + fee quotes"] --> S10["Select one offer"]
   end
   subgraph LENDER["Lender portal"]
@@ -100,13 +100,15 @@ After selection, the lender and the SME complete the loan **directly** (contract
 | A3 | Demo data | Reset and seed synthetic SMEs and lenders; offline/live mode indicator | All (seed jobs) |
 | A4 | Operations | Import failures, dead-letter queues, reconciliation mismatches, audit queries | Accounting, platform, Audit |
 
-## 8. Business model as it affects the system (state on 2026-11-19)
+## 8. Business model as it affects the system (state on 2026-11-23)
+
+**Current (team decision 2026-11-23):** the company discloses its full profile, pays a **one-off CHF 190 per loan request** to unlock lender identities (covers the partner identity check; no refund), and sees offers, rating and fair-rate range before paying. Lenders pay a **success fee** when the payout is confirmed. The table below shows the history of decisions.
 
 | Element | Status | Source |
 |---|---|---|
-| **SMEs are charged** | **Decided.** Amount and trigger TBD. | Team decision 2026-11-19 |
+| **SMEs are charged** | **Decided 2026-11-23:** one-off CHF 190 per request to unlock offers ([ADR-0032](../adr/0032-unlock-payment-and-identity-check.md)) | Team |
 | SME tiers Basic / Light / Pro | **Not adopted** (team decision 2026-11-19: success-only fee, all features included) | Seb, Business Model canvas |
-| **SME success fee**, payable only when the loan is funded; lender confirms payout; SME has a 14-day dispute window; amount TBD | **Decided (trigger), amount open** | Team 2026-11-19 |
+| SME success fee (payable when the loan is funded) | **Replaced 2026-11-23** by the one-off unlock fee. Lenders keep the success fee with the 14-day dispute window. | Team 2026-11-19 / 2026-11-23 |
 | SME success fee (2 % example: CHF 10,000 on CHF 500,000) | Candidate | Gruber §3 |
 | Lender success fee 0.75 % (min CHF 2,000, cap CHF 7,500), disclosed to the SME | Earlier working assumption; **to be reconfirmed** | Pitch deck, canvas |
 | Fiduciary referral share: 20 % of CredSort's fee | Working assumption | Master Plan, canvas |
@@ -121,7 +123,7 @@ After selection, the lender and the SME complete the loan **directly** (contract
 ## 9. Rules the user can see in the UI
 
 1. Connecting bexio **does not** publish anything.
-2. Lenders see only published profiles and only the fields the SME allowed, frozen at publication time.
+2. Lenders see only published profiles, with the **full profile** the company disclosed, frozen at publication time. Offers are anonymous until the company pays the unlock fee.
 3. The assessment is labelled **preliminary and illustrative**; it is not a bank rating or a probability of default.
 4. Fair-rate ranges are labelled **illustrative** until empirical data exist.
 5. Every lender pays the same disclosed fee; no lender can buy a better position.

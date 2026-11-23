@@ -115,6 +115,77 @@ def test_llm_outage_falls_back_to_the_template(env):
     env.chain[:] = [TemplateModel()]
 
 
+# ---- assistant chat ----------------------------------------------------------------------------------
+def chat_llm(reply):
+    def handler(request):
+        if reply is None:
+            return httpx.Response(503, json={"error": "down"})
+        return httpx.Response(200, json={"choices": [{"message": {"content": reply}}]})
+    return LlmApiModel("http://llm", "coach-model", "key", transport=httpx.MockTransport(handler))
+
+
+def ask(env, text, h, history=()):
+    return env.client.post("/v1/assistant/chat", json={"assessment_id": str(uuid.uuid4()), "messages": [*history, {"role": "user", "content": text}]}, headers=h)
+
+
+def test_chat_template_answers_from_the_verified_context(env):
+    env.chain[:] = [TemplateModel()]
+    _, h = env.sme()
+    r = ask(env, "How can I improve my rating?", h)
+    assert r.status_code == 200 and r.json()["model"]["name"] == "template" and "equity" in r.json()["reply"].lower()
+    from app.domain import text as T
+    assert T.invented_numbers({"reply": r.json()["reply"]}, context()) == []
+
+
+def test_chat_llm_reply_is_used_when_it_uses_only_known_numbers(env):
+    env.chain[:] = [chat_llm("Your equity ratio of 8.0% is thin. Retaining profit would lift it."), TemplateModel()]
+    _, h = env.sme()
+    r = ask(env, "What is my weakest point?", h).json()
+    assert r["model"]["name"] == "llm:coach-model" and r["fallback_used"] is False and "8.0%" in r["reply"]
+
+
+def test_chat_reply_with_an_invented_number_is_discarded(env):
+    env.chain[:] = [chat_llm("Raise your equity ratio to 42.5% and you will be approved."), TemplateModel()]
+    _, h = env.sme()
+    r = ask(env, "What should I do?", h).json()
+    assert r["fallback_used"] is True and "42.5" not in r["reply"]
+
+
+def test_chat_may_repeat_a_number_the_owner_typed_and_survives_an_llm_outage(env):
+    env.chain[:] = [chat_llm("If your sales grew by 25% the picture would change, but I cannot promise a result."), TemplateModel()]
+    _, h = env.sme()
+    assert ask(env, "What if my sales grow 25%?", h).json()["fallback_used"] is False
+    env.chain[:] = [chat_llm(None), TemplateModel()]
+    r = ask(env, "How can I improve?", h).json()
+    assert r["model"]["name"] == "template" and r["fallback_used"] is True
+    env.chain[:] = [TemplateModel()]
+
+
+def test_chat_allows_honest_rounding_but_not_invented_figures():
+    from app.domain import text as T
+    ctx = {"metrics": [{"code": "equity_ratio", "value": "0.31158311"}], "period_end": "2025-12-31"}
+    assert T.invented_numbers({"reply": "Equity ratio is about 31 %"}, ctx, rounding=True) == []
+    assert T.invented_numbers({"reply": "Equity ratio is about 31 %"}, ctx) != []  # explanations stay exact
+    assert T.invented_numbers({"reply": "Equity ratio should reach 45 %"}, ctx, rounding=True) != []
+
+
+def test_chat_replies_are_plain_text():
+    from app.plugins.models import plain_text
+    assert plain_text("**Equity ratio** is `31 %`.\n\n\n* Retain profit\n# Heading") == "Equity ratio is 31 %.\n\n- Retain profit\nHeading"
+
+
+def test_chat_limits_and_access(env):
+    env.chain[:] = [TemplateModel()]
+    _, h = env.sme()
+    assert env.client.post("/v1/assistant/chat", json={"assessment_id": str(uuid.uuid4()), "messages": [{"role": "assistant", "content": "hi"}]}, headers=h).status_code == 422
+    assert ask(env, "x" * 601, h).status_code == 422
+    lender = env.tokens.headers(org_type="LENDER", role="LENDER_ADMIN")
+    assert ask(env, "hello", lender).status_code == 403
+    env.billing.entitlements = ["PROFILE"]
+    assert ask(env, "hello", h).json()["code"] == "feature_not_included"
+    env.billing.entitlements = ["PROFILE", "APPLY", "ADVISOR", "WHAT_IF"]
+
+
 # ---- lifecycle ---------------------------------------------------------------------------------------
 def test_deletion_purges_the_cache(env):
     from app.main import create_service_app  # noqa: F401

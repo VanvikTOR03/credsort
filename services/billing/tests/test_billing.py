@@ -8,7 +8,7 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
 
-from conftest import LENDER_FEE, SME_FEE
+from conftest import LENDER_FEE, SME_FEE, UNLOCK_FEE
 from credsort_common.background import process_event
 from credsort_common.security import JwksCache, RS256Verifier
 from credsort_common.testing import service_headers
@@ -210,3 +210,65 @@ def test_every_tenant_table_has_row_level_security(env):
         rows = s.execute(text("select relname, relrowsecurity and relforcerowsecurity as ok from pg_class c join pg_namespace n on n.oid = c.relnamespace "
                               "where n.nspname = 'public' and c.relkind = 'r'")).all()
     assert [r.relname for r in rows if not r.ok and r.relname not in {"schema_migrations", "inbox", "denylist", "tombstones"}] == []
+
+
+# ===================================================================================== one-off unlock payment (company)
+def sme_headers(env, org=None, **kw):
+    org = org or uuid.uuid4()
+    return org, env.tokens.headers(org_id=org, org_type="SME", role="SME_ADMIN", org_name="Muster AG", **kw)
+
+
+def test_unlock_price_is_public_and_unpriced_until_a_book_defines_it(env):
+    _, h = sme_headers(env)
+    assert env.client.get("/v1/unlock/price", headers=h).json()["status"] == "UNPRICED"
+    env.new_book([UNLOCK_FEE, LENDER_FEE])
+    price = env.client.get("/v1/unlock/price", headers=h).json()
+    assert price["status"] == "PRICED" and price["amount"] == "190.0000" and price["methods"] == ["TWINT", "VISA", "MASTERCARD"] and price["placeholder"] is True
+
+
+def test_paying_the_unlock_fee_succeeds_once_and_emits_one_event(env):
+    env.new_book([UNLOCK_FEE])
+    org, h = sme_headers(env)
+    app = uuid.uuid4()
+    first = env.client.post("/v1/unlock/payments", json={"application_id": str(app), "method": "TWINT"}, headers=h)
+    assert first.status_code == 201
+    body = first.json()
+    assert body["status"] == "PAID" and body["amount"] == "190.0000" and body["method"] == "TWINT" and body["provider"] == "demo" and body["provider_ref"].startswith("DEMO-")
+    again = env.client.post("/v1/unlock/payments", json={"application_id": str(app), "method": "VISA"}, headers=h).json()
+    assert again["payment_id"] == body["payment_id"] and again["already_paid"] is True and again["method"] == "TWINT"  # a retry never charges twice
+    with env.db.system() as s:
+        events = [r.payload for r in s.execute(text("select payload from outbox where event_type like '%billing.unlock.paid%'")).all() if r.payload["credsortorgid"] == str(org)]
+    assert len(events) == 1 and events[0]["data"] == {"org_id": str(org), "application_id": str(app), "payment_id": body["payment_id"]}
+    assert [p["application_id"] for p in env.client.get("/v1/unlock/payments", headers=h).json()] == [str(app)]
+
+
+def test_unlock_needs_a_price_a_known_method_and_an_sme_admin(env):
+    org, h = sme_headers(env)
+    app = str(uuid.uuid4())
+    assert env.client.post("/v1/unlock/payments", json={"application_id": app, "method": "TWINT"}, headers=h).json()["code"] == "unlock_unpriced"
+    env.new_book([UNLOCK_FEE])
+    assert env.client.post("/v1/unlock/payments", json={"application_id": app, "method": "PAYPAL"}, headers=h).status_code == 422
+    _, member = sme_headers(env)
+    member = env.tokens.headers(org_id=uuid.uuid4(), org_type="SME", role="SME_MEMBER", org_name="X")
+    assert env.client.post("/v1/unlock/payments", json={"application_id": app, "method": "TWINT"}, headers=member).status_code == 403
+    lender = env.tokens.headers(org_type="LENDER", role="LENDER_ADMIN", org_name="Bank")
+    assert env.client.post("/v1/unlock/payments", json={"application_id": app, "method": "TWINT"}, headers=lender).status_code == 403
+    delegate = env.tokens.headers(org_type="FIDUCIARY", role="FIDUCIARY_ADVISOR", on_behalf_of=org, scopes=("VIEW_PROFILE", "PREPARE_APPLICATION"))
+    assert env.client.post("/v1/unlock/payments", json={"application_id": app, "method": "TWINT"}, headers=delegate).status_code == 403
+
+
+def test_unlock_payments_are_private_to_the_payer(env):
+    env.new_book([UNLOCK_FEE])
+    _, a = sme_headers(env)
+    _, b = sme_headers(env)
+    env.client.post("/v1/unlock/payments", json={"application_id": str(uuid.uuid4()), "method": "MASTERCARD"}, headers=a)
+    assert len(env.client.get("/v1/unlock/payments", headers=a).json()) == 1 and env.client.get("/v1/unlock/payments", headers=b).json() == []
+
+
+def test_the_demo_gateway_is_refused_in_production_and_never_takes_card_numbers(monkeypatch):
+    import inspect
+    from app.plugins import gateway
+    monkeypatch.setenv("CREDSORT_ENV", "prod")
+    with pytest.raises(RuntimeError):
+        gateway.DemoGateway()
+    assert "card" not in " ".join(inspect.signature(gateway.PaymentGateway.charge).parameters)  # card data never reaches CredSort

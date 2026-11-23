@@ -43,6 +43,7 @@ AUDIT = S(audit_id="uuid", actor_user_id="uuid?", acting_org_id="uuid?", on_beha
 CATALOG: dict[str, dict] = {
     "identity.organization.created": S(org_id="uuid", org_type="enum:SME|LENDER|FIDUCIARY|PLATFORM", referred_by_org_id="uuid?"),
     "identity.organization.verification_changed": S(org_id="uuid", kyb_status="enum:UNVERIFIED|PENDING|VERIFIED|REJECTED"),
+    "identity.organization.kyc_completed": S(org_id="uuid", kyc_status="enum:VERIFIED|REJECTED"),
     "identity.organization.suspended": S(org_id="uuid"),
     "identity.membership.revoked": S(org_id="uuid", user_id="uuid", revoked_at="ts"),
     "identity.delegation.granted": S(sme_org_id="uuid", fiduciary_org_id="uuid", scopes="str[]"),
@@ -78,6 +79,7 @@ CATALOG: dict[str, dict] = {
     "billing.entitlements.changed": S(org_id="uuid", entitlements="str[]"),
     "billing.charge.recorded": S(charge_id="uuid", org_id="uuid", quote_id="uuid"),
     "billing.charge.status_changed": S(charge_id="uuid", org_id="uuid", status="enum:RECORDED|HELD|WAIVED|CANCELLED"),
+    "billing.unlock.paid": S(org_id="uuid", application_id="uuid", payment_id="uuid"),
     "billing.charge.held": S(org_id="uuid?", quote_id="uuid?", reason_code="str", source_event_id="uuid"),
     "billing.audit.recorded": AUDIT,
     "advisory.audit.recorded": AUDIT,

@@ -6,6 +6,7 @@ import { Icon, Tile } from "./Icon";
 import { useSession, useToast } from "./Providers";
 import { api, invalidate, useApi } from "@/lib/client/api";
 import { Button, Pill } from "./ui";
+import { Assistant } from "./Assistant";
 
 type NavItem = { href: string; label: string; icon: string; color: string };
 const NAV: Record<string, NavItem[]> = {
@@ -46,6 +47,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const kind = acting ? "SME" : s.org.type;
   const nav = NAV[kind] ?? NAV.SME;
   const unread = useApi<{ unread: number }>("notification", "/v1/notifications", { refresh: 20000 });
+  const bare = path === "/sme/loans/new" && typeof window !== "undefined" && new URLSearchParams(window.location.search).get("first") === "1";
   const active = (i: NavItem) => (i.href === HOME[kind] ? path === i.href : path.startsWith(i.href));
 
   async function signOut() { await fetch("/api/auth/logout", { method: "POST" }); location.href = "/login"; }
@@ -59,6 +61,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </Link>
   );
 
+  if (bare) return <div className="shell"><main className="page page-in" style={{ maxWidth: 1180, paddingTop: 24 }}>{children}</main></div>;
   return (
     <div className="shell">
       <aside className="side" aria-label="Main">
@@ -81,6 +84,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         )}
         <div className="page page-in" key={path}>{children}</div>
       </main>
+      {kind === "SME" && <Assistant />}
       <nav className="tabbar" aria-label="Main">
         {nav.map((i) => <Link key={i.href} href={i.href} className="tab" aria-current={active(i) ? "page" : undefined}><Icon name={i.icon} />{i.label}</Link>)}
       </nav>

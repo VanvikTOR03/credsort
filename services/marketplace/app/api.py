@@ -36,17 +36,13 @@ class ApplicationUpdate(BaseModel):
 
 
 class Publication(BaseModel):
-    fields: list[str]
+    fields: list[str] | None = None  # accepted for compatibility and ignored: companies always disclose everything
     lender_org_ids: list[uuid.UUID] | None = None
     assessment_id: uuid.UUID | None = None
 
 
 class CriteriaIn(BaseModel):
     criteria: dict[str, Any]
-
-
-class AccessRequestIn(BaseModel):
-    fields: list[str]
 
 
 class OfferIn(BaseModel):
@@ -91,12 +87,12 @@ def build_router(db: Database, sec: Security, intel, billing, quotes) -> APIRout
         return apps.update_application(db, ctx, app_id, body.model_dump(exclude_none=True))
 
     @r.get("/v1/applications/{app_id}/publication-preview")
-    def preview(app_id: uuid.UUID, fields: Annotated[str, Query()], ctx: AccessContext = Depends(ctx_dep)):
-        return apps.publication_preview(db, intel, ctx, app_id, [f for f in fields.split(",") if f])
+    def preview(app_id: uuid.UUID, ctx: AccessContext = Depends(ctx_dep)):
+        return apps.publication_preview(db, intel, ctx, app_id, F.FULL_DISCLOSURE)
 
     @r.post("/v1/applications/{app_id}/publication", status_code=201)
     def publish(app_id: uuid.UUID, body: Publication, response: Response, ctx: AccessContext = Depends(ctx_dep), idempotency_key: Idem = None):
-        status, result = apps.publish(db, intel, ctx, app_id, body.fields, body.lender_org_ids, body.assessment_id, idempotency_key)
+        status, result = apps.publish(db, intel, ctx, app_id, F.FULL_DISCLOSURE, body.lender_org_ids, body.assessment_id, idempotency_key)
         response.status_code = status
         return result
 
@@ -117,18 +113,6 @@ def build_router(db: Database, sec: Security, intel, billing, quotes) -> APIRout
     @r.post("/v1/applications/{app_id}/dispute")
     def dispute(app_id: uuid.UUID, ctx: AccessContext = Depends(ctx_dep)):
         return apps.dispute(db, ctx, app_id)
-
-    @r.get("/v1/access-requests")
-    def access_requests(application_id: uuid.UUID | None = None, ctx: AccessContext = Depends(ctx_dep)):
-        return apps.list_access_requests(db, ctx, application_id)
-
-    @r.post("/v1/access-requests/{request_id}/approve")
-    def approve(request_id: uuid.UUID, ctx: AccessContext = Depends(ctx_dep)):
-        return apps.decide_access_request(db, intel, ctx, request_id, True)
-
-    @r.post("/v1/access-requests/{request_id}/deny")
-    def deny(request_id: uuid.UUID, ctx: AccessContext = Depends(ctx_dep)):
-        return apps.decide_access_request(db, intel, ctx, request_id, False)
 
     @r.get("/v1/disclosures")
     def disclosures(ctx: AccessContext = Depends(ctx_dep)):
@@ -158,10 +142,6 @@ def build_router(db: Database, sec: Security, intel, billing, quotes) -> APIRout
     @r.get("/v1/lender/applications/{app_id}")
     def lender_app(app_id: uuid.UUID, ctx: AccessContext = Depends(ctx_dep)):
         return lending.lender_application(db, ctx, app_id)
-
-    @r.post("/v1/lender/applications/{app_id}/access-requests", status_code=201)
-    def request_access(app_id: uuid.UUID, body: AccessRequestIn, ctx: AccessContext = Depends(ctx_dep)):
-        return lending.request_access(db, ctx, app_id, body.fields)
 
     @r.post("/v1/lender/applications/{app_id}/offers", status_code=201)
     def submit(app_id: uuid.UUID, body: OfferIn, response: Response, ctx: AccessContext = Depends(ctx_dep), idempotency_key: Idem = None):

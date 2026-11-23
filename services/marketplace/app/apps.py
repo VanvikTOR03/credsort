@@ -21,7 +21,7 @@ from .sessions import as_system, pilot_cap, sess
 
 SVC = "marketplace"
 APP_COLS = ("id, sme_org_id, status, amount, term_months, purpose, collateral, assessment_id, industry, employees, published_profile_id, selected_offer_id, "
-            "created_at, published_at, selected_at, funded_at, dispute_until, disputed_at, closed_at")
+            "created_at, published_at, selected_at, funded_at, dispute_until, disputed_at, closed_at, unlocked_at")
 
 
 def _app(row) -> dict:
@@ -224,57 +224,6 @@ def revoke_all(db: Database, ctx: AccessContext) -> dict:
     with sess(db, ctx) as s:
         n = _revoke(s, ctx, ctx.effective_org_id, "true", {})
     return {"revoked": n, "note": "Lenders can no longer see this data. Copies a lender already received cannot be recalled."}
-
-
-# --------------------------------------------------------------------------- access requests (full disclosure)
-def list_access_requests(db: Database, ctx: AccessContext, app_id: uuid.UUID | None) -> list[dict]:
-    require_sme_access(ctx, "VIEW_PROFILE")
-    with sess(db, ctx) as s:
-        rows = s.execute(text("select id, application_id, lender_org_id, requested_fields, status, created_at, decided_at from access_requests "
-                              "where (cast(:a as uuid) is null or application_id = cast(:a as uuid)) order by created_at desc"), {"a": app_id}).all()
-    return [dict(r._mapping) for r in rows]
-
-
-def decide_access_request(db: Database, intel, ctx: AccessContext, request_id: uuid.UUID, approve: bool) -> dict:
-    forbid_delegated(ctx)
-    require_role(ctx, "SME_ADMIN")
-    org = ctx.effective_org_id
-    with sess(db, ctx) as s:
-        req = s.execute(text("select id, application_id, lender_org_id, requested_fields, status from access_requests where id = :i"), {"i": request_id}).first()
-        if not req:
-            raise NotFound("access request not found")
-        if req.status != "PENDING":
-            raise Conflict("this request was already decided", code="already_decided")
-        app = _load_app(s, req.application_id)
-        base = s.execute(text("select permitted_fields from disclosures where application_id = :a and level = 'summary' and revoked_at is null limit 1"), {"a": req.application_id}).first()
-    if approve and (base is None or app.status != "PUBLISHED"):
-        raise Conflict("the application is no longer shared", code="not_shared")
-    values: dict = {}
-    if approve:
-        fields = list(dict.fromkeys([*base.permitted_fields, *req.requested_fields]))
-        intel_fields, own_fields = F.split(fields)
-        extract = _fetch_intelligence(intel, ctx, app.assessment_id, intel_fields)  # outside the transaction
-        values = {**extract["fields"], **_marketplace_values(app, ctx, own_fields)}
-    with sess(db, ctx) as s:
-        locked = s.execute(text("select status from access_requests where id = :i for update"), {"i": request_id}).first()
-        if locked.status != "PENDING":
-            raise Conflict("this request was already decided", code="already_decided")
-        s.execute(text("update access_requests set status = :st, decided_at = now() where id = :i"), {"st": "APPROVED" if approve else "DENIED", "i": request_id})
-        if approve:
-            profile_id = uuid.uuid4()
-            s.execute(text("insert into published_profiles(id, application_id, sme_org_id, assessment_id, version, fields, as_of) values (:i, :a, :o, :as, 2, cast(:f as jsonb), :d)"),
-                      {"i": profile_id, "a": app.id, "o": org, "as": app.assessment_id, "f": json.dumps(values), "d": extract_as_of(extract)})
-            s.execute(text("insert into disclosures(id, application_id, sme_org_id, lender_org_id, level, purpose, permitted_fields, profile_id) values (:i, :a, :o, :l, 'full', 'application_review', :f, :p)"),
-                      {"i": uuid.uuid4(), "a": app.id, "o": org, "l": req.lender_org_id, "f": list(values), "p": profile_id})
-            emit(s, SVC, "marketplace.disclosure.granted", org, f"application/{app.id}", {"application_id": app.id, "sme_org_id": org, "lender_org_id": req.lender_org_id, "level": "full"})
-        emit(s, SVC, "marketplace.access.decided", org, f"access/{request_id}",
-             {"application_id": app.id, "request_id": request_id, "sme_org_id": org, "lender_org_id": req.lender_org_id, "decision": "APPROVED" if approve else "DENIED"})
-        record_audit(s, SVC, ctx, "access.approved" if approve else "access.denied", f"access/{request_id}")
-    return {"id": request_id, "status": "APPROVED" if approve else "DENIED"}
-
-
-def extract_as_of(extract: dict) -> dt.date:
-    return dt.date.fromisoformat(str(extract["as_of"]))
 
 
 # --------------------------------------------------------------------------- dispute window

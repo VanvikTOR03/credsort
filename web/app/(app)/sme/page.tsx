@@ -28,10 +28,10 @@ export default function SmeHome() {
     if (!latest) return { icon: "gauge", title: "Calculating your score", text: "Your numbers are being checked. This usually takes a few seconds.", cta: "See progress", href: "/sme/finances?tab=data" };
     if (active?.status === "FUNDED" && active.dispute_until && daysLeft(active.dispute_until) > 0) return { icon: "calendar", title: "Did the money arrive?", text: `You can raise a problem for ${daysLeft(active.dispute_until)} more days.`, cta: "Review loan", href: `/sme/loans/${active.id}` };
     if (active?.status === "OFFER_SELECTED") return { icon: "clock", title: "Waiting for your lender", text: "Once they confirm the payout, your loan is complete.", cta: "View loan", href: `/sme/loans/${active.id}` };
-    if (active?.status === "PUBLISHED" && active.open_offers > 0) return { icon: "loan", title: `${active.open_offers} offer${active.open_offers > 1 ? "s" : ""} to compare`, text: "Side by side, with the full cost of each.", cta: "Compare offers", href: `/sme/loans/${active.id}` };
+    if (active?.status === "PUBLISHED" && active.open_offers > 0) return { icon: "loan", title: `${active.open_offers} offer${active.open_offers > 1 ? "s" : ""} to compare`, text: "Side by side, with the full cost of each. Unlock lender names for a one-off fee.", cta: "Compare offers", href: `/sme/loans/${active.id}` };
     if (active?.status === "PUBLISHED") return { icon: "search", title: "Lenders are looking", text: "Your request is visible to matching lenders. We will tell you when an offer arrives.", cta: "View request", href: `/sme/loans/${active.id}` };
     if (active?.status === "DRAFT") return { icon: "pencil", title: "Finish your loan request", text: "A few more taps and lenders can start making offers.", cta: "Continue", href: `/sme/loans/${active.id}` };
-    return { icon: "loan", title: "See what lenders would offer", text: "Ask for a loan. It is free, and you only pay if a loan is funded.", cta: "Start a request", href: "/sme/loans/new" };
+    return { icon: "loan", title: "See what lenders would offer", text: "Ask for a loan. Lenders respond with offers you can compare.", cta: "Start a request", href: "/sme/loans/new" };
   }, [apps.data, conns.data, latest]);
 
   const steps = useMemo(() => {
@@ -39,7 +39,7 @@ export default function SmeHome() {
     const has = (s: string[]) => a.some((x) => s.includes(x.status));
     return [
       { label: "Connect accounting", done: !!conns.data?.length }, { label: "Check your score", done: !!latest },
-      { label: "Ask for a loan", done: has(["PUBLISHED", "OFFER_SELECTED", "FUNDED", "DISPUTED", "CLOSED"]) }, { label: "Choose an offer", done: has(["OFFER_SELECTED", "FUNDED", "DISPUTED", "CLOSED"]) },
+      { label: "Ask for a loan", done: has(["PUBLISHED", "OFFER_SELECTED", "FUNDED", "DISPUTED", "CLOSED"]) }, { label: "Unlock and choose an offer", done: has(["OFFER_SELECTED", "FUNDED", "DISPUTED", "CLOSED"]) },
       { label: "Receive the money", done: has(["FUNDED", "CLOSED"]) },
     ];
   }, [apps.data, conns.data, latest]);
@@ -101,7 +101,7 @@ export default function SmeHome() {
             <List>
               <Row icon="shield" color="indigo" title="Who can see my data" sub={pending ? `${pending} request${pending > 1 ? "s" : ""} waiting for you` : "You are in control"} href="/sme/privacy" value={pending ? <Pill tone="orange">{pending}</Pill> : undefined} />
               <Row icon="sliders" color="accent" title="Try a what-if" sub="See how a change would move your score" href="/sme/finances?tab=whatif" />
-              <Row icon="receipt" color="green" title="Fees" sub="You pay only if a loan is funded" href="/sme/fees" />
+              <Row icon="receipt" color="green" title="Fees" sub="One-off CHF 190 per request, only to see who made the offers" href="/sme/fees" />
             </List>
           </Section>
         </>

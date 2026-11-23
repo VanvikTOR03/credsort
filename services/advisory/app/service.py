@@ -70,6 +70,29 @@ def explain(db: Database, intel, billing, chain: list[LanguageModel], ctx: Acces
     raise UpstreamUnavailable("no explanation could be produced", code="explanation_unavailable")
 
 
+def chat(db: Database, intel, billing, chain: list[LanguageModel], ctx: AccessContext, assessment_id: uuid.UUID, messages: list[dict]) -> dict:
+    """The company's coach: answers questions about the company's own verified assessment. Same guard as explanations: no invented numbers."""
+    if "ADVISOR" not in entitlements_for(db, billing, ctx):
+        raise Forbidden("this feature is not part of your plan", code="feature_not_included")
+    context = intel.get(f"/internal/v1/assessments/{assessment_id}/advisory-context", ctx=ctx)
+    owner_numbers = [{"value": str(n)} for m in messages if m["role"] == "user" for n in T.numbers_in(m["content"])]  # numbers the owner typed may be repeated
+    guard_context = {**context, "owner_numbers": owner_numbers}
+    org = ctx.effective_org_id
+    for model in chain:
+        try:
+            reply = model.chat(messages, context)
+            if not reply or T.invented_numbers({"reply": reply}, guard_context, rounding=True):
+                log.warning("assistant reply rejected", extra={"code": "invented_numbers"})
+                continue
+        except Exception:
+            log.warning("assistant model failed, trying the next one", extra={"code": "model_failed"})
+            continue
+        with db.session(org) as s:
+            record_audit(s, SVC, ctx, "assistant.replied", f"assessment/{assessment_id}")
+        return {"reply": reply, "model": {"name": model.name, "version": model.version}, "fallback_used": model is not chain[0], "disclaimer": T.DISCLAIMER}
+    raise UpstreamUnavailable("the assistant is not available right now", code="assistant_unavailable")
+
+
 def upsert_entitlements(session, event) -> None:
     d = event["data"]
     session.execute(text("insert into entitlements(org_id, entitlements) values (:o, :e) on conflict (org_id) do update set entitlements = excluded.entitlements, updated_at = now()"),

@@ -22,7 +22,7 @@ Service-based architecture: Next.js (web app + BFF) · FastAPI services (Python)
 ### Documentation
 
 - [Architecture overview](architecture/README.md): review, use case and screens, domain and service model, architecture characteristics, style selection and trade-offs, runtime and integration, failure modes, security, deployment
-- [Architecture Decision Records](adr/README.md): 31 ADRs
+- [Architecture Decision Records](adr/README.md): 32 ADRs
 - [Master Product & Development Plan v1](CredSort_Master_Product_Development_Plan_EN_v1.md)
 - [Architecture & Implementation Plan v1](CredSort_Architecture_Implementation_Plan_EN_v1.md)
 - [Diagrams as Code](CredSort_Diagrams_as_Code_EN.md)

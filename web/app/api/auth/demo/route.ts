@@ -3,7 +3,7 @@ import { AUTH_MODE } from "@/lib/server/config";
 
 // Seeded, synthetic demo accounts (scripts/seed.py). Only offered by the dev login.
 const ACCOUNTS = [
-  { group: "SME", email: "anna.keller@muster-maschinenbau.demo", name: "Anna Keller", org: "Muster Maschinenbau AG", note: "Manufacturing, 48 staff. Has an active application.", icon: "building", color: "blue" },
+  { group: "SME", email: "anna.keller@muster-maschinenbau.demo", name: "Anna Keller", org: "Muster Maschinenbau AG", note: "Manufacturing, 48 staff. Three offers waiting.", icon: "building", color: "blue" },
   { group: "SME", email: "luca.bernasconi@alpina-gastro.demo", name: "Luca Bernasconi", org: "Alpina Gastro GmbH", note: "Hospitality, 22 staff. Works with an accountant.", icon: "building", color: "orange" },
   { group: "SME", email: "mia.stalder@pixelwerk.demo", name: "Mia Stalder", org: "Pixelwerk Studio GmbH", note: "Software, 12 staff. Application still a draft.", icon: "building", color: "purple" },
   { group: "Lender", email: "sandra.huber@regionalbank-zuerich.demo", name: "Sandra Huber", org: "Regionalbank Zürich", note: "Broad criteria, mid-size loans.", icon: "bank", color: "indigo" },

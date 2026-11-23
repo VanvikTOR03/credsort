@@ -43,3 +43,7 @@ Marketplace needs some financial fields of an SME to run matching, but Intellige
 ## Revisit when
 
 SMEs want automatic refresh (consider an opt-in "auto-republish on new assessment" that re-confirms consent explicitly).
+
+## Addendum (2026-11-23)
+
+Publication now always freezes the **full catalogue** ([ADR-0008](0008-consent-and-permitted-field-matching.md) addendum). Decision 4 (lender-specific "full access" profiles) no longer applies. Everything else (immutability, as-of date, re-publication) is unchanged.

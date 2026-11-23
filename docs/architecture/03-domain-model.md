@@ -80,7 +80,7 @@ Six **domain services** and two **platform services**. Each owns exactly one dat
 | | |
 |---|---|
 | **Purpose** | Price books, fee rules, plans, entitlements, **signed quotes**, immutable fee charges, referral shares, invoicing export |
-| **Owns** | PriceBook, FeeRule, Entitlement, Quote, FeeCharge, ReferralShare |
+| **Owns** | PriceBook, FeeRule, Entitlement, Quote, FeeCharge, ReferralShare, UnlockPayment |
 | **External API** | Fees and charges, invoices export; admin price-book management |
 | **Internal API** | `POST /internal/v1/quotes`, `GET /internal/v1/organizations/{id}/entitlements` |
 | **Publishes** | `billing.price_book.activated`, `billing.entitlements.changed`, `billing.charge.recorded`, `billing.charge.held` |
@@ -126,7 +126,7 @@ Six **domain services** and two **platform services**. Each owns exactly one dat
 | **Data Confidence** | A separate measure of completeness, freshness, consistency, verifiability and provenance. |
 | **Scenario** | A what-if recalculation on a copy of a snapshot; never changes the baseline. |
 | **LoanApplication** | The SME's financing request: DRAFT → PUBLISHED → OFFER_SELECTED → CLOSED, or WITHDRAWN. After selection, the **Loan** moves SELECTED → FUNDED (lender confirms payout, 14-day dispute window) → CLOSED, or DISPUTED / CANCELLED. |
-| **PublishedProfile** | The **frozen copy of the permitted fields** of one assessment, taken at publication; the only financial data lenders ever see in matching. |
+| **PublishedProfile** | The **frozen copy of the full disclosed profile** of one assessment, taken at publication; the only financial data lenders ever see in matching. |
 | **DataDisclosure** | Consent record: recipient scope, level (summary/full), purpose, permitted fields, revocation time. |
 | **LenderPreference** | Versioned lending criteria: eligibility rules plus preference weights. |
 | **Match** | An eligible application ranked for one lender, with an explanation. |

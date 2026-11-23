@@ -36,6 +36,8 @@ RULES: dict[str, Callable[[dict], list[dict]]] = {
     "marketplace.loan.cancelled": lambda d: [note(d["sme_org_id"], "loan.cancelled", "Your loan was cancelled", "The lender cancelled before payout. No fee is due.", f"/sme/applications/{d['application_id']}", d["application_id"])],
     "marketplace.access.requested": lambda d: [note(d["sme_org_id"], "access.requested", "A lender asks for more information", "Review the request and decide what to share.", "/sme/requests", d["application_id"])],
     "marketplace.access.decided": lambda d: [note(d["lender_org_id"], "access.decided", "Your information request was " + d["decision"].lower(), "Open the application to see what is shared.", "/lender/matches", d["application_id"])],
+    "billing.unlock.paid": lambda d: [note(d["org_id"], "offers.unlocked", "Offers unlocked", "You can now see who made each offer. Our partner is checking your identity.", f"/sme/loans/{d['application_id']}", d["application_id"])],
+    "identity.organization.kyc_completed": lambda d: [note(d["org_id"], "kyc.completed", "Identity check " + d["kyc_status"].lower(), "Your company identity check is finished.", "/sme")],
     "billing.charge.status_changed": lambda d: [note(d["org_id"], "charge.changed", "A fee changed status", "See your fees for details.", "/settings/fees")],
     "identity.organization.verification_changed": lambda d: [note(d["org_id"], "verification.changed", "Verification status updated", "Your organization is now " + d["kyb_status"].lower() + ".", "/settings")],
     "identity.delegation.granted": lambda d: [note(d["fiduciary_org_id"], "delegation.granted", "A client shared access with you", "You can now prepare applications on their behalf.", "/fiduciary/clients")],

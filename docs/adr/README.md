@@ -56,6 +56,7 @@ All ADRs are **Proposed** until the team accepts them.
 | [0020](0020-kyb-outsourced-via-port.md) | KYB plug-in in Identity; status as a token claim; pilot loan cap |
 | [0028](0028-central-audit-log.md) | Local audit in every transaction + central append-only, hash-chained log |
 | [0031](0031-data-lifecycle-and-deletion.md) | Coordinated deletion/anonymization across services; tombstones prevent resurrection on replay |
+| [0032](0032-unlock-payment-and-identity-check.md) | **Unlock payment**: one-off company fee, payment gateway port (demo gateway), anonymous offers until paid, partner identity check |
 
 ### Data, money and AI
 
@@ -69,7 +70,7 @@ All ADRs are **Proposed** until the team accepts them.
 
 | ADR | Decision |
 |---|---|
-| [0013](0013-billing-and-sme-charging.md) | **SMEs are charged only on success**: fee payable when the loan is funded (lender confirms payout, 14-day dispute window), versioned price books, **signed quotes**, charges exactly as quoted; amount TBD |
+| [0013](0013-billing-and-sme-charging.md) | **One-off CHF 190 company unlock fee** + **lender success fee** (payout confirmation, 14-day dispute window), versioned price books, **signed quotes**, charges exactly as quoted |
 | [0014](0014-no-loan-money-flow.md) | CredSort never holds or moves loan money; it invoices only its own fees |
 | [0019](0019-organization-types-and-delegation.md) | Organization types, fiduciary delegation and referral attribution from day one |
 

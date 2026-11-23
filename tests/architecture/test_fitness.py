@@ -246,10 +246,14 @@ def test_dev_only_shortcuts_are_refused_in_production():
 
 
 def test_no_secrets_or_keys_are_committed():
-    skip = {".venv", ".dev", "node_modules", ".git", ".next", "__pycache__", ".pytest_cache"}
-    for p in ROOT.rglob("*"):
-        if p.is_file() and not skip & set(p.relative_to(ROOT).parts) and p.suffix in {".py", ".json", ".yml", ".yaml", ".env", ".ts", ".tsx", ".md", ".sql", ".sh", ".pem"} and p.name != "test_fitness.py":
-            text = p.read_text(errors="ignore")
-            assert "-----BEGIN" not in text, f"private key material in {p}"
-            assert not re.search(r"\bAKIA[0-9A-Z]{16}\b|sk-[A-Za-z0-9]{32,}", text), f"credential-like string in {p}"
-    assert not list(ROOT.glob("**/.env")) or all(".venv" in str(x) or "node_modules" in str(x) for x in ROOT.glob("**/.env"))
+    """Only files tracked by git count: a developer's local, git-ignored .env is allowed to hold real keys."""
+    tracked = subprocess.run(["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=True).stdout.splitlines()
+    assert tracked, "not a git checkout"
+    assert not [t for t in tracked if Path(t).name == ".env"], ".env must never be committed"
+    for name in tracked:
+        p = ROOT / name
+        if p.name == "test_fitness.py" or p.name == "package-lock.json" or not p.is_file() or p.suffix not in {".py", ".json", ".yml", ".yaml", ".ts", ".tsx", ".md", ".sql", ".sh", ".pem", ".example", ".mjs", ".css"}:
+            continue
+        text = p.read_text(errors="ignore")
+        assert "-----BEGIN" not in text, f"private key material in {p}"
+        assert not re.search(r"\bAKIA[0-9A-Z]{16}\b|sk-[A-Za-z0-9]{32,}|gsk_[A-Za-z0-9]{20,}", text), f"credential-like string in {p}"

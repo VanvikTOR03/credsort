@@ -53,3 +53,12 @@ Revocation must be effective everywhere:
 - **Marketplace:** immediate through row-level security (a revoked disclosure closes the lender's access in the same transaction).
 - **Delegation revocation** (fiduciary): `identity.delegation.revoked` adds a deny-list entry (user, organization, on-behalf-of, since); tokens issued before `since` stop working at every service.
 - **Notification:** lender-facing notices that refer to the revoked access are withdrawn.
+
+## Addendum (2026-11-23): full disclosure
+
+**Team decision:** a company that requests offers discloses its **whole profile** (every field in the catalogue, including the company name). There is no field picking and no per-lender "full access" request. Lenders filter with their own criteria on the complete profile.
+
+- Consent stays explicit and is still recorded as a DataDisclosure: one checkbox at submission ("I agree to share my full profile with matching lenders"), `permitted_fields` = the full catalogue.
+- Revocation (stop sharing, withdraw the request, delegation revocation) is unchanged and still immediate.
+- The access-request endpoints and screens were removed; the `access_requests` table and its two events remain in the schema for history and are no longer emitted.
+- Matching, neutrality and the "criteria on a hidden field exclude the application" rule are unchanged; with full disclosure a field is only absent when it has no value (for example no purpose given).

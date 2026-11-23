@@ -28,7 +28,19 @@ from credsort_common.config import PORTS, SERVICES  # noqa: E402
 from credsort_common.migrate import provision, service_urls  # noqa: E402
 
 
+def load_dotenv(path: Path) -> None:
+    """Minimal .env reader: KEY=VALUE lines; existing environment variables win. The file is git-ignored and never printed."""
+    if not path.exists():
+        return
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            key, _, value = line.partition("=")
+            os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
+
 def main() -> int:
+    load_dotenv(ROOT / ".env")
     (DEV / "logs").mkdir(parents=True, exist_ok=True)
     (DEV / "keys").mkdir(parents=True, exist_ok=True)
     import pgserver

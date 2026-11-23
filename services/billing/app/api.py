@@ -27,7 +27,7 @@ class QuoteRequest(BaseModel):
 class RuleIn(BaseModel):
     code: str = Field(min_length=2, max_length=40)
     payer: Literal["SME", "LENDER"]
-    trigger: Literal["LOAN_FUNDED", "MANUAL"] = "LOAN_FUNDED"
+    trigger: Literal["LOAN_FUNDED", "OFFERS_UNLOCKED", "MANUAL"] = "LOAN_FUNDED"
     calculator: Literal["FIXED", "PERCENT_OF_PRINCIPAL"]
     amount: DecimalStr | None = None
     percent: DecimalStr | None = None
@@ -40,6 +40,11 @@ class BookCreate(BaseModel):
     placeholder: bool = False
 
 
+class UnlockPay(BaseModel):
+    application_id: uuid.UUID
+    method: Literal["TWINT", "VISA", "MASTERCARD"]
+
+
 class Activate(BaseModel):
     effective_from: dt.date | None = None
 
@@ -49,7 +54,7 @@ class EntitlementSet(BaseModel):
     entitlements: list[str]
 
 
-def build_router(db: Database, sec: Security, keystore: KeyStore) -> APIRouter:
+def build_router(db: Database, sec: Security, keystore: KeyStore, gateway) -> APIRouter:
     r = APIRouter()
     ctx_dep = sec.context_dependency()
     marketplace_only = sec.service_dependency({"marketplace"})
@@ -75,6 +80,18 @@ def build_router(db: Database, sec: Security, keystore: KeyStore) -> APIRouter:
     @r.get("/v1/pricing")
     def pricing(ctx: AccessContext = Depends(ctx_dep)):
         return svc.public_pricing(db)
+
+    @r.get("/v1/unlock/price")
+    def unlock_price(ctx: AccessContext = Depends(ctx_dep)):
+        return svc.unlock_price(db)
+
+    @r.post("/v1/unlock/payments", status_code=201)
+    def pay_unlock(body: UnlockPay, ctx: AccessContext = Depends(ctx_dep)):
+        return svc.pay_unlock(db, gateway, ctx, body.application_id, body.method)
+
+    @r.get("/v1/unlock/payments")
+    def unlock_payments(ctx: AccessContext = Depends(ctx_dep)):
+        return svc.list_unlock_payments(db, ctx)
 
     @r.get("/v1/charges")
     def charges(ctx: AccessContext = Depends(ctx_dep)):

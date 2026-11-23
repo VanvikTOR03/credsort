@@ -13,9 +13,10 @@ from credsort_common.errors import Conflict, NotFound, Unprocessable
 from credsort_common.events import emit
 from credsort_common.lifecycle import finish_deletion
 from credsort_common.money import D, q_amount
-from credsort_common.security import AccessContext, KeyStore
+from credsort_common.security import AccessContext, KeyStore, forbid_delegated, require_org_type, require_role
 
-from .domain.fees import DEFAULT_ENTITLEMENTS, TRIGGERS, Rule, quote_amount
+from .domain.fees import DEFAULT_ENTITLEMENTS, TRIGGERS, UNLOCK_TRIGGER, Rule, quote_amount
+from .plugins.gateway import METHODS, PaymentGateway
 
 SVC = "billing"
 QUOTE_TTL = dt.timedelta(days=90)
@@ -107,6 +108,57 @@ def issue_quote(db: Database, keystore: KeyStore, *, action: str, subject_id: uu
               "ccy": "CHF", "pricing": pricing, "pbv": book.version if book else None}
     return {"quote_id": qid, "token": keystore.sign(claims), "amount": amount, "currency": "CHF", "pricing": pricing,
             "price_book_version": book.version if book else None, "expires_at": expires, "rule_codes": [r.code for r in rules]}
+
+
+# --------------------------------------------------------------------------- unlock payment (company, one-off per loan request)
+def unlock_price(db: Database) -> dict:
+    """What the company pays to see who made the offers. Public: shown before anything is paid."""
+    with db.session(None, "NONE") as s:
+        book = active_book(s)
+        rules = _rules(s.execute(text("select code, payer, trigger, calculator, amount, percent, min_amount, cap_amount from fee_rules "
+                                      "where price_book_id = :b and trigger = :t and payer = 'SME'"), {"b": book.id, "t": UNLOCK_TRIGGER}).all()) if book else []
+    if not rules:
+        return {"status": "UNPRICED", "amount": None, "currency": "CHF", "methods": list(METHODS), "placeholder": bool(book and book.is_placeholder)}
+    return {"status": "PRICED", "amount": quote_amount(rules, Decimal(1)), "currency": "CHF", "methods": list(METHODS), "placeholder": bool(book.is_placeholder)}
+
+
+def pay_unlock(db: Database, gateway: PaymentGateway, ctx: AccessContext, application_id: uuid.UUID, method: str) -> dict:
+    """Charges the one-off unlock fee for one loan request. Idempotent per request: paying twice returns the first payment."""
+    require_org_type(ctx, "SME")
+    forbid_delegated(ctx)
+    require_role(ctx, "SME_ADMIN")
+    if method not in METHODS:
+        raise Unprocessable(f"choose one of {', '.join(METHODS)}", code="unsupported_method")
+    org = ctx.org_id
+    with db.session(org) as s:
+        existing = s.execute(text("select id, amount, currency, method, status, provider, provider_ref, created_at from unlock_payments where application_id = :a"), {"a": application_id}).first()
+        if existing:
+            return {**existing._mapping, "payment_id": existing.id, "already_paid": True}
+        book = active_book(s)
+        rules = _rules(s.execute(text("select code, payer, trigger, calculator, amount, percent, min_amount, cap_amount from fee_rules "
+                                      "where price_book_id = :b and trigger = :t and payer = 'SME'"), {"b": book.id, "t": UNLOCK_TRIGGER}).all()) if book else []
+    if not rules:
+        raise Conflict("the price for unlocking offers has not been set yet", code="unlock_unpriced")
+    amount = quote_amount(rules, Decimal(1))
+    payment_id = uuid.uuid4()
+    result = gateway.charge(method=method, amount=amount, currency="CHF", idempotency_key=f"{org}:{application_id}")  # remote call outside the transaction
+    if not result.approved:
+        raise Unprocessable("the payment was declined", code="payment_declined")
+    with db.session(org) as s:
+        s.execute(text("insert into unlock_payments(id, org_id, application_id, amount, method, status, provider, provider_ref, price_book_version) "
+                       "values (:i, :o, :a, :am, :m, 'PAID', :p, :r, :v) on conflict (application_id) do nothing"),
+                  {"i": payment_id, "o": org, "a": application_id, "am": amount, "m": method, "p": result.provider, "r": result.reference, "v": book.version})
+        row = s.execute(text("select id, amount, currency, method, status, provider, provider_ref, created_at from unlock_payments where application_id = :a"), {"a": application_id}).first()
+        if row.id == payment_id:
+            emit(s, SVC, "billing.unlock.paid", org, f"application/{application_id}", {"org_id": org, "application_id": application_id, "payment_id": payment_id})
+            record_audit(s, SVC, ctx, "unlock.paid", f"application/{application_id}")
+    return {**row._mapping, "payment_id": row.id, "already_paid": row.id != payment_id}
+
+
+def list_unlock_payments(db: Database, ctx: AccessContext) -> list[dict]:
+    with db.session(ctx.org_id) as s:
+        rows = s.execute(text("select id, application_id, amount, currency, method, status, provider, provider_ref, created_at from unlock_payments order by created_at desc limit 50")).all()
+    return [dict(r._mapping) for r in rows]
 
 
 # --------------------------------------------------------------------------- charges (event handlers act on Billing's own ledger)
@@ -223,7 +275,7 @@ def set_entitlements(db: Database, ctx: AccessContext, org_id: uuid.UUID, values
 def delete_org_data(session, org_id) -> None:
     """Invoices and charges are retained for the legal retention period (ADR-0031); everything else is removed."""
     _as_billing(session)
-    for table in ("referrals", "entitlement_overrides", "held_events"):
+    for table in ("referrals", "entitlement_overrides", "held_events"):  # unlock payments are retained with the charges for the legal retention period
         session.execute(text(f"delete from {table} where org_id = :o"), {"o": org_id})
     session.execute(text("delete from quotes q where q.org_id = :o and not exists (select 1 from fee_charges c where c.quote_id = q.id)"), {"o": org_id})
     finish_deletion(session, SVC, org_id)

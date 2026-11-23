@@ -30,19 +30,23 @@ def new_offer_ready(env, lender_fields=None, **crit):
 
 
 # ===================================================================================== publication & consent
-def test_publication_freezes_exactly_the_consented_fields(env):
+def test_publication_discloses_everything_and_the_company_cannot_pick_fields(env):
+    from app.domain.fields import CATALOGUE
     org, h = env.sme(industry="manufacturing", employees=25)
     app = env.draft(h)
-    prev = env.client.get(f"/v1/applications/{app}/publication-preview", params={"fields": ",".join(SUMMARY + ["employees_band"])}, headers=h).json()
+    prev = env.client.get(f"/v1/applications/{app}/publication-preview", headers=h).json()
     shown = {f["field"]: f["value"] for f in prev["fields"]}
+    assert set(shown) == set(CATALOGUE)  # the preview shows the whole profile
     assert shown["requested_amount"] == "500000.0000" and shown["industry"] == "manufacturing" and shown["assessment_category"] == "B" and shown["employees_band"] == "10-49"
-    r = env.client.post(f"/v1/applications/{app}/publication", json={"fields": SUMMARY}, headers=h)
-    assert r.status_code == 201 and set(r.json()["shared_fields"]) == set(SUMMARY)
+    assert shown["company_name"].startswith("Muster")
+    # a client asking for fewer fields is ignored: the disclosure is always complete
+    r = env.client.post(f"/v1/applications/{app}/publication", json={"fields": ["requested_amount"]}, headers=h)
+    assert r.status_code == 201 and set(r.json()["shared_fields"]) == set(CATALOGUE)
     with env.db.system() as s:
         fields = s.execute(text("select fields from published_profiles where application_id = :a"), {"a": app}).scalar()
         d = s.execute(text("select level, purpose, permitted_fields, revoked_at from disclosures where application_id = :a"), {"a": app}).first()
-    assert set(fields) == set(SUMMARY) and "company_name" not in fields and "equity_ratio" not in fields  # nothing beyond what was chosen
-    assert (d.level, d.purpose, d.revoked_at) == ("summary", "matching", None) and set(d.permitted_fields) == set(SUMMARY)
+    assert set(fields) == set(CATALOGUE) and fields["equity_ratio"] == "0.35"
+    assert (d.level, d.purpose, d.revoked_at) == ("summary", "matching", None) and set(d.permitted_fields) == set(CATALOGUE)
     assert [e["data"] for e in env.events("application.published", org)][-1] == {"application_id": app, "sme_org_id": str(org)}
 
 
@@ -66,8 +70,6 @@ def test_only_a_verified_sme_admin_who_is_not_a_delegate_can_publish(env):
     assert env.client.post(f"/v1/applications/{env.draft(unverified)}/publication", json=body, headers=unverified).json()["code"] == "kyb_required"
     delegate = env.tokens.headers(org_type="FIDUCIARY", role="FIDUCIARY_ADVISOR", on_behalf_of=app_org, scopes=("VIEW_PROFILE", "PREPARE_APPLICATION"))
     assert env.client.post(f"/v1/applications/{app}/publication", json=body, headers=delegate).json()["code"] == "delegation_forbidden"
-    assert env.client.post(f"/v1/applications/{app}/publication", json={"fields": []}, headers=h).status_code == 422
-    assert env.client.post(f"/v1/applications/{app}/publication", json={"fields": ["ledger"]}, headers=h).json()["code"] == "unknown_fields"
 
 
 def test_a_delegate_may_prepare_the_draft_but_not_publish_or_see_other_smes(env):
@@ -113,14 +115,14 @@ def test_pilot_cap(env, monkeypatch):
 
 
 # ===================================================================================== what lenders can see
-def test_lender_sees_only_published_consented_fields(env):
+def test_lender_sees_the_full_published_profile_and_never_a_draft(env):
     _, sme = env.sme()
     _, lender = env.lender()
     draft = env.draft(sme)
-    published = env.publish(sme, fields=["requested_amount", "term_months", "assessment_category"])
+    published = env.publish(sme)
     items = {i["application_id"]: i for i in env.matches(lender)["items"]}
     assert draft not in items and published in items
-    assert set(items[published]["fields"]) == {"requested_amount", "term_months", "assessment_category"}  # nothing else leaks
+    assert {"requested_amount", "term_months", "assessment_category", "equity_ratio", "dscr", "company_name"} <= set(items[published]["fields"])
     assert env.client.get(f"/v1/lender/applications/{draft}", headers=lender).status_code == 404
 
 
@@ -143,25 +145,6 @@ def test_lender_cannot_read_unconsented_rows_even_with_raw_sql(env):
         assert s.execute(text("select count(*) from published_profiles where application_id = :a"), {"a": own_only}).scalar() == 0
     with sess(env.db, env.ctx(other)) as s:
         assert s.execute(text("select count(*) from applications where id = :a"), {"a": own_only}).scalar() == 1
-
-
-def test_indirect_disclosure_is_impossible_criteria_on_hidden_fields_change_nothing(env):
-    _, sme = env.sme()
-    app = env.publish(sme, fields=["requested_amount", "term_months", "assessment_category"])  # equity_ratio NOT shared
-    _, probing = env.lender()
-    _, plain = env.lender()
-    env.criteria(plain)
-    baseline = [i["application_id"] for i in env.matches(plain)["items"]]
-    assert app in baseline
-    # a lender probes the hidden metric with ever tighter thresholds: the answers are always "not in the list", never a value
-    for threshold in ("0.01", "0.2", "0.35", "0.9"):
-        env.criteria(probing, min={"equity_ratio": threshold})
-        result = env.matches(probing)
-        assert app not in [i["application_id"] for i in result["items"]]
-    # and results/ordering of everything else are the same as if the hidden application did not exist
-    _, only_visible = env.sme()
-    env.criteria(probing, min={"equity_ratio": "0.2"})
-    assert env.matches(probing)["total"] == len([i for i in env.matches(probing)["items"]])
 
 
 def test_different_lenders_get_different_results_and_a_deterministic_ranking(env):
@@ -227,46 +210,44 @@ def test_withdrawing_an_application_revokes_consent_and_rejects_open_offers(env)
     assert env.client.post(f"/v1/offers/{offer}/selection", headers=sme).status_code == 409
 
 
-# ===================================================================================== access requests (full disclosure)
-def test_full_access_is_granted_per_lender_and_frozen_at_approval(env):
+# ===================================================================================== unlocking (one-off company fee)
+def test_offers_are_anonymous_and_cannot_be_chosen_until_unlocked(env):
     sme_org, sme = env.sme()
-    asking_org, asking = env.lender()
-    _, bystander = env.lender()
-    app = env.publish(sme)
-    r = env.client.post(f"/v1/lender/applications/{app}/access-requests", json={"fields": ["equity_ratio", "dscr"]}, headers=asking)
-    assert r.status_code == 201
-    assert env.client.post(f"/v1/lender/applications/{app}/access-requests", json={"fields": ["dscr"]}, headers=asking).status_code == 409  # one pending
-    req = env.client.get("/v1/access-requests", headers=sme).json()[0]
-    assert req["status"] == "PENDING" and set(req["requested_fields"]) == {"equity_ratio", "dscr"}
-    env.intel.values["equity_ratio"] = "0.35"
-    assert env.client.post(f"/v1/access-requests/{req['id']}/approve", headers=sme).json()["status"] == "APPROVED"
-    full = env.client.get(f"/v1/lender/applications/{app}", headers=asking).json()
-    assert full["level"] == "full" and full["fields"]["equity_ratio"] == "0.35" and "dscr" in full["fields"]
-    plain = env.client.get(f"/v1/lender/applications/{app}", headers=bystander).json()
-    assert plain["level"] == "summary" and "equity_ratio" not in plain["fields"]  # only the requesting lender gets more
-    env.intel.values["equity_ratio"] = "0.99"  # later changes in Intelligence do not alter what was frozen at approval
-    assert env.client.get(f"/v1/lender/applications/{app}", headers=asking).json()["fields"]["equity_ratio"] == "0.35"
-    assert env.client.post(f"/v1/access-requests/{req['id']}/approve", headers=sme).status_code == 409  # decided once
+    lender_org, lender = env.lender()
+    app = env.publish(sme, unlocked=False)
+    offer = env.offer(lender, app).json()["id"]
+    listed = env.client.get(f"/v1/applications/{app}/offers", headers=sme).json()
+    assert listed[0]["unlocked"] is False and listed[0]["lender_name"] == "Lender A"
+    assert "Bank" not in str(listed) and str(lender_org) not in str(listed)  # the identity is not in the payload at all
+    r = env.client.post(f"/v1/offers/{offer}/selection", headers=sme)
+    assert r.status_code == 409 and r.json()["code"] == "not_unlocked"
 
 
-def test_access_can_be_denied_and_only_the_sme_admin_decides(env):
+def test_the_unlock_event_reveals_lender_names_once_and_only_for_the_owner(env):
     sme_org, sme = env.sme()
-    _, lender = env.lender()
-    app = env.publish(sme)
-    env.client.post(f"/v1/lender/applications/{app}/access-requests", json={"fields": ["dscr"]}, headers=lender)
-    req = env.client.get("/v1/access-requests", headers=sme).json()[0]["id"]
-    assert env.client.post(f"/v1/access-requests/{req}/approve", headers=lender).status_code in (403, 404)
-    _, member = env.sme(role="SME_MEMBER")
-    assert env.client.post(f"/v1/access-requests/{req}/deny", headers=member).status_code in (403, 404)
-    assert env.client.post(f"/v1/access-requests/{req}/deny", headers=sme).json()["status"] == "DENIED"
-    assert "dscr" not in env.client.get(f"/v1/lender/applications/{app}", headers=lender).json()["fields"]
+    lender_org, lender = env.lender()
+    app = env.publish(sme, unlocked=False)
+    offer = env.offer(lender, app).json()["id"]
+    event = {"id": str(uuid.uuid4()), "type": "credsort.billing.unlock.paid.v1", "credsortorgid": str(sme_org),
+             "data": {"org_id": str(sme_org), "application_id": app, "payment_id": str(uuid.uuid4())}}
+    stranger = {**event, "data": {**event["data"], "org_id": str(uuid.uuid4())}}
+    with env.db.session(None, "SYSTEM") as s:
+        lending.mark_unlocked(s, stranger)  # an unlock for another organization changes nothing
+    assert env.client.get(f"/v1/applications/{app}/offers", headers=sme).json()[0]["unlocked"] is False
+    for _ in range(2):  # idempotent
+        with env.db.session(None, "SYSTEM") as s:
+            lending.mark_unlocked(s, event)
+    listed = env.client.get(f"/v1/applications/{app}/offers", headers=sme).json()
+    assert listed[0]["unlocked"] is True and listed[0]["lender_name"].startswith("Bank")
+    assert env.client.post(f"/v1/offers/{offer}/selection", headers=sme).status_code == 200
 
 
-def test_requesting_access_to_a_hidden_application_is_a_plain_404(env):
+def test_access_request_endpoints_no_longer_exist(env):
     _, sme = env.sme()
     _, lender = env.lender()
-    draft = env.draft(sme)
-    assert env.client.post(f"/v1/lender/applications/{draft}/access-requests", json={"fields": ["dscr"]}, headers=lender).status_code == 404
+    app = env.publish(sme)
+    assert env.client.post(f"/v1/lender/applications/{app}/access-requests", json={"fields": ["dscr"]}, headers=lender).status_code in (404, 405)
+    assert env.client.get("/v1/access-requests", headers=sme).status_code in (404, 405)
 
 
 # ===================================================================================== offers
@@ -495,7 +476,7 @@ def test_matcher_notifies_only_lenders_whose_criteria_fit(env):
     miss_org, miss = env.lender()
     env.criteria(miss, industries=["retail"])
     hidden_org, hidden = env.lender()
-    env.criteria(hidden, min={"equity_ratio": "0.1"})  # needs a field this SME did not share
+    env.criteria(hidden, min={"equity_ratio": "0.9"})  # a threshold this SME's equity ratio (0.35) does not reach
     app = env.publish(sme)
     published = [e for e in env.events("application.published", sme_org) if e["data"]["application_id"] == app][-1]
     matcher = next(c for c in consumers() if c.name == "marketplace-matcher")

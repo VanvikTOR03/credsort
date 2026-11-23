@@ -7,7 +7,7 @@ import uuid
 from sqlalchemy import text
 
 from credsort_common.audit import record_audit
-from credsort_common.db import Database
+from credsort_common.db import Database, set_context
 from credsort_common.errors import Conflict, Forbidden, NotFound, Unprocessable
 from credsort_common.events import emit
 from credsort_common.security import AccessContext, KeyStore, new_context_claims
@@ -86,7 +86,7 @@ def issue_context_token(db: Database, keystore: KeyStore, who: UserIdentity, org
 
 # --------------------------------------------------------------------------- onboarding
 def create_organization(db: Database, kyb: KybProvider, who: UserIdentity, *, org_type: str, legal_name: str, uid: str | None,
-                        legal_form: str | None, industry: str | None, employees: int | None, referral_code: str | None) -> dict:
+                        legal_form: str | None, industry: str | None, employees: int | None, referral_code: str | None, canton: str | None = None) -> dict:
     if org_type == "PLATFORM":
         raise Forbidden("platform organizations are created by operators", code="org_type_forbidden")
     with db.system() as s:
@@ -104,9 +104,9 @@ def create_organization(db: Database, kyb: KybProvider, who: UserIdentity, *, or
                 raise Unprocessable("unknown referral code", code="unknown_referral_code")
         org_id = uuid.uuid4()
         status = kyb.verify(org_type, uid, legal_name)
-        s.execute(text("insert into organizations(id, type, legal_name, uid, legal_form, industry, employees, kyb_status, referred_by_org_id, referral_code) "
-                       "values (:i, :t, :n, :u, :f, :ind, :emp, :k, :r, :c)"),
-                  {"i": org_id, "t": org_type, "n": legal_name, "u": uid, "f": legal_form, "ind": industry, "emp": employees, "k": status,
+        s.execute(text("insert into organizations(id, type, legal_name, uid, legal_form, industry, employees, canton, kyb_status, referred_by_org_id, referral_code) "
+                       "values (:i, :t, :n, :u, :f, :ind, :emp, :cn, :k, :r, :c)"),
+                  {"i": org_id, "t": org_type, "n": legal_name, "u": uid, "f": legal_form, "ind": industry, "emp": employees, "cn": canton, "k": status,
                    "r": referrer.id if referrer else None, "c": _referral_code()})
         s.execute(text("insert into memberships(id, user_id, org_id, role) values (:i, :u, :o, :r)"),
                   {"i": uuid.uuid4(), "u": user_id, "o": org_id, "r": ROLE_BY_ORG_TYPE[org_type]})
@@ -118,9 +118,22 @@ def create_organization(db: Database, kyb: KybProvider, who: UserIdentity, *, or
         return {"id": org_id, "type": org_type, "kyb_status": status}
 
 
+def run_identity_check(session, provider, event) -> None:
+    """Idempotent: an organization is checked once; a repeated payment event changes nothing."""
+    set_context(session, None, "SYSTEM")
+    org_id = event["data"]["org_id"]
+    org = session.execute(text("select id, legal_name, uid, kyc_status from organizations where id = :i"), {"i": org_id}).first()
+    if org is None or org.kyc_status != "NONE":
+        return
+    status = provider.verify_identity(str(org.id), org.legal_name, org.uid)
+    session.execute(text("update organizations set kyc_status = :s, kyc_verified_at = case when :s = 'VERIFIED' then now() end where id = :i"), {"s": status, "i": org_id})
+    emit(session, SVC, "identity.organization.kyc_completed", org_id, f"organization/{org_id}", {"org_id": org_id, "kyc_status": status})
+    record_audit(session, SVC, None, "organization.kyc_completed", f"organization/{org_id}", org_id=org_id)
+
+
 def current_org(db: Database, ctx: AccessContext) -> dict:
     with db.session(ctx.org_id) as s:
-        o = s.execute(text("select id, type, legal_name, uid, legal_form, industry, employees, kyb_status, status, referral_code, referred_by_org_id "
+        o = s.execute(text("select id, type, legal_name, uid, legal_form, industry, employees, canton, kyb_status, kyc_status, status, referral_code, referred_by_org_id "
                            "from organizations where id = :i"), {"i": ctx.org_id}).first()
         if o is None:
             raise NotFound("organization not found")

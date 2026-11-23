@@ -1,4 +1,4 @@
-# ADR-0013: Billing Service — SMEs Are Charged; Versioned Price Books; Signed Quotes; Charges Exactly as Quoted
+# ADR-0013: Billing Service — One-off Company Unlock Fee, Lender Success Fee; Versioned Price Books; Signed Quotes; Charges Exactly as Quoted
 
 | | |
 |---|---|
@@ -21,7 +21,13 @@
 
 ## Decision
 
-**Team decisions (2026-11-19)**
+**Current model (team decision 2026-11-23, supersedes the success-only SME fee below)**
+- **Companies pay a one-off CHF 190 per loan request** to unlock the identities of the lenders that made offers. It covers the partner identity check. There is no refund and no success fee for the company.
+- Offers, ratings and the fair-rate range are visible **before** paying; lender names and the ability to choose an offer need the unlock ([ADR-0032](0032-unlock-payment-and-identity-check.md)).
+- **Lenders pay a success fee** (demo: 0.75 %, min CHF 2,000, cap CHF 7,500) when they confirm the payout. It is fixed with a signed quote at offer submission, is never added to the company's cost, and keeps the 14-day dispute window (held on dispute, cancelled if the loan is cancelled). A fiduciary referral share applies to CredSort's fees.
+- Everything below about quotes, price books, charges and the 14-day window still applies; the SME success-fee rule is simply not part of the price book any more.
+
+**Earlier decisions (2026-11-19), kept for history**
 - **The SME fee is success-only.** There is no publication fee and no subscription plan; every feature is included. A fee becomes **payable only when the loan is funded**.
 - **The lender confirms the payout** in the Marketplace (`marketplace.loan.funded`). The SME then has a **14-day dispute window**; the charge is payable after that window.
 - The fee amount is still open and stays configuration (price book).

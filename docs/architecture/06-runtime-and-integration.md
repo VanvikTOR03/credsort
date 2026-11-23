@@ -71,6 +71,8 @@ All internal calls are **outside** database transactions and at most **one hop**
 | `marketplace.loan.disputed.v1` / `.cancelled.v1` | Marketplace | Billing, Notification | loan_id, offer_id, sme_org_id |
 | `billing.price_book.activated.v1` | Billing | Notification (admins) | price_book_version, effective_from |
 | `billing.entitlements.changed.v1` | Billing | Intelligence, Advisory | org_id, entitlements[] |
+| `billing.unlock.paid.v1` | Billing | Marketplace, Identity, Notification | org_id, application_id, payment_id |
+| `identity.organization.kyc_completed.v1` | Identity | Notification | org_id, kyc_status |
 | `billing.charge.recorded.v1` / `.held.v1` / `.status_changed.v1` | Billing | Notification, Audit | charge_id, org_id, quote_id, status |
 | `<service>.audit.recorded.v1` | every service | Audit | actor, acting_org, on_behalf_of_org, action, resource ref, time |
 
@@ -145,7 +147,7 @@ sequenceDiagram
   participant FI as Intelligence
   participant BIL as Billing
   participant MQ as RabbitMQ
-  SME->>BFF: Open "Publish" with chosen fields
+  SME->>BFF: Request offers (full profile, one consent checkbox)
   BFF->>MKT: GET publication preview
   MKT->>FI: profile-extract(assessment, fields)
   MKT-->>BFF: Preview "what lenders see" (no fee at publication)
@@ -174,7 +176,9 @@ sequenceDiagram
   MKT->>BIL: quote(LOAN_FUNDED, payer = SME) fetched before the transaction (fail closed)
   MKT->>MKT: TX: offer SUBMITTED (immutable, with quote) + audit + outbox
   SME->>MKT: Open comparison (sees the expected fee per offer, "payable only if funded")
-  SME->>MKT: Select offer
+  SME->>BIL: Pay the one-off unlock fee (demo gateway: TWINT, Visa, Mastercard)
+  BIL->>MQ: unlock.paid (Marketplace reveals lender names; Identity runs the partner identity check)
+  SME->>MKT: Select offer (refused until unlocked)
   MKT->>MKT: Verify the stored quote locally (JWKS signature, expiry, bound to offer)
   MKT->>MKT: TX: lock application · validate states · offer SELECTED · quote locked · audit · outbox
   Note over MKT: Partial unique index guarantees one SELECTED offer

@@ -109,8 +109,10 @@ def main() -> None:
 
     if not call("GET", "billing", "/v1/admin/price-books", headers=admin).json():
         # Prices are not decided yet (ADR-0013). A clearly labelled DEMO price book lets the whole flow be shown; operators replace it.
-        rule = lambda code, payer, pct, lo, hi: {"code": code, "payer": payer, "trigger": "LOAN_FUNDED", "calculator": "PERCENT_OF_PRINCIPAL", "percent": pct, "min_amount": lo, "cap_amount": hi}
-        book = call("POST", "billing", "/v1/admin/price-books", headers=admin, json={"placeholder": True, "rules": [rule("SME_SUCCESS", "SME", "1.0", "1000", "8000"), rule("LENDER_SUCCESS", "LENDER", "0.75", "2000", "7500")]}).json()
+        rule = lambda code, payer, trigger, **kw: {"code": code, "payer": payer, "trigger": trigger, **kw}
+        book = call("POST", "billing", "/v1/admin/price-books", headers=admin, json={"placeholder": True, "rules": [
+            rule("SME_UNLOCK", "SME", "OFFERS_UNLOCKED", calculator="FIXED", amount="190"),
+            rule("LENDER_SUCCESS", "LENDER", "LOAN_FUNDED", calculator="PERCENT_OF_PRINCIPAL", percent="0.75", min_amount="2000", cap_amount="7500")]}).json()
         call("POST", "billing", f"/v1/admin/price-books/{book['id']}/activate", headers=admin, json={})
         print("  activated a DEMO price book (placeholder prices, not final)")
 
@@ -136,9 +138,15 @@ def main() -> None:
     if not call("GET", "marketplace", "/v1/applications", headers=h).json():
         aid = profiles[muster[0]]["assessment"]["id"]
         app = call("POST", "marketplace", "/v1/applications", json={"amount": "600000", "term_months": 60, "purpose": "Expansion of the production line", "assessment_id": aid}, headers=h).json()["id"]
-        fields = ["requested_amount", "term_months", "industry", "employees_band", "assessment_category", "confidence_band", "revenue_band", "equity_ratio", "ebitda_margin", "debt_to_ebitda", "dscr"]
-        call("POST", "marketplace", f"/v1/applications/{app}/publication", json={"fields": fields}, headers=h)
+        call("POST", "marketplace", f"/v1/applications/{app}/publication", json={}, headers=h)  # companies disclose everything; no field choice
         print("  published a demo application for Muster Maschinenbau AG")
+        import datetime as dt
+        valid = str(dt.date.today() + dt.timedelta(days=30))
+        for (email, name, org, _), (rate, fees, repayment) in zip(LENDERS, [("2.85", "1500", "LINEAR"), ("3.10", "0", "ANNUITY"), ("4.60", "2500", "BULLET")]):
+            lh = login(email, name)
+            call("POST", "marketplace", f"/v1/lender/applications/{app}/offers", headers=lh,
+                 json={"amount": "600000", "rate": rate, "term_months": 60, "fees": fees, "repayment": repayment, "valid_until": valid})
+        print("  three demo lenders sent offers (names stay hidden until the company pays the unlock fee)")
     pix = SMES[2]
     hp = login(pix[0], pix[1])
     if not call("GET", "marketplace", "/v1/applications", headers=hp).json():

@@ -206,6 +206,7 @@
             "default": "LOAN_FUNDED",
             "enum": [
               "LOAN_FUNDED",
+              "OFFERS_UNLOCKED",
               "MANUAL"
             ],
             "title": "Trigger",
@@ -218,6 +219,30 @@
           "calculator"
         ],
         "title": "RuleIn",
+        "type": "object"
+      },
+      "UnlockPay": {
+        "properties": {
+          "application_id": {
+            "format": "uuid",
+            "title": "Application Id",
+            "type": "string"
+          },
+          "method": {
+            "enum": [
+              "TWINT",
+              "VISA",
+              "MASTERCARD"
+            ],
+            "title": "Method",
+            "type": "string"
+          }
+        },
+        "required": [
+          "application_id",
+          "method"
+        ],
+        "title": "UnlockPay",
         "type": "object"
       },
       "ValidationError": {
@@ -860,6 +885,146 @@
           }
         },
         "summary": "Pricing"
+      }
+    },
+    "/v1/unlock/payments": {
+      "get": {
+        "operationId": "unlock_payments_v1_unlock_payments_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Unlock Payments"
+      },
+      "post": {
+        "operationId": "pay_unlock_v1_unlock_payments_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnlockPay"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Pay Unlock"
+      }
+    },
+    "/v1/unlock/price": {
+      "get": {
+        "operationId": "unlock_price_v1_unlock_price_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Unlock Price"
       }
     }
   }

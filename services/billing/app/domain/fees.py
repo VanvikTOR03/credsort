@@ -6,8 +6,9 @@ from decimal import Decimal
 
 from credsort_common.money import D, q_amount, round_invoice_chf
 
-DEFAULT_ENTITLEMENTS = ["PROFILE", "APPLY", "ADVISOR", "WHAT_IF"]  # SMEs pay only on success: every feature is included
-TRIGGERS = {"LOAN_FUNDED"}
+DEFAULT_ENTITLEMENTS = ["PROFILE", "APPLY", "ADVISOR", "WHAT_IF"]  # every feature is included; companies pay once per loan request to unlock offers
+TRIGGERS = {"LOAN_FUNDED"}  # fees quoted per offer and charged when the payout is confirmed
+UNLOCK_TRIGGER = "OFFERS_UNLOCKED"  # the company's one-off fee, paid up front
 
 
 @dataclass(frozen=True)

@@ -4,12 +4,15 @@ import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from typing import Literal
+
+from pydantic import BaseModel, Field
 
 from credsort_common.app import create_app
 from credsort_common.background import Consumer
 from credsort_common.config import Settings
 from credsort_common.db import Database
+from credsort_common.errors import Unprocessable
 from credsort_common.security import AccessContext, Security, require_sme_access
 from credsort_common.upstream import UpstreamClient
 
@@ -21,6 +24,16 @@ MIGRATIONS = Path(__file__).resolve().parents[1] / "migrations"
 
 class ScenarioExplain(BaseModel):
     assessment_id: uuid.UUID
+
+
+class ChatMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=600)
+
+
+class ChatIn(BaseModel):
+    assessment_id: uuid.UUID
+    messages: list[ChatMessage] = Field(min_length=1, max_length=12)
 
 
 def create_service_app(settings: Settings | None = None, db: Database | None = None, security: Security | None = None, intelligence=None, billing=None,
@@ -45,6 +58,12 @@ def create_service_app(settings: Settings | None = None, db: Database | None = N
     @r.post("/v1/scenarios/{scenario_id}/explanation")
     def scenario_explanation(scenario_id: uuid.UUID, body: ScenarioExplain, ctx: AccessContext = Depends(viewer)):
         return svc.explain(db, intel, bill, models, ctx, body.assessment_id, scenario_id)
+
+    @r.post("/v1/assistant/chat")
+    def assistant_chat(body: ChatIn, ctx: AccessContext = Depends(viewer)):
+        if body.messages[-1].role != "user":
+            raise Unprocessable("the last message must be the question", code="invalid_chat")
+        return svc.chat(db, intel, bill, models, ctx, body.assessment_id, [m.model_dump() for m in body.messages])
 
     app.include_router(r)
     return app

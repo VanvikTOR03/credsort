@@ -12,6 +12,11 @@ class KybProvider(Protocol):
         """Returns UNVERIFIED | PENDING | VERIFIED | REJECTED."""
 
 
+class IdentityProvider(Protocol):
+    def verify_identity(self, org_id: str, legal_name: str, uid: str | None) -> str:
+        """Partner identity check of the company's representative. Returns VERIFIED | REJECTED."""
+
+
 class StubKybProvider:
     """Verifies synthetic SMEs with a well-formed UID; lenders and fiduciaries wait for a platform admin."""
 
@@ -21,3 +26,10 @@ class StubKybProvider:
         if org_type == "PLATFORM":
             return "VERIFIED"
         return "PENDING"
+
+
+class StubIdentityProvider:
+    """Demo identity check: approves companies with a well-formed UID. A real partner (video or e-ID) replaces it behind the same port."""
+
+    def verify_identity(self, org_id: str, legal_name: str, uid: str | None) -> str:
+        return "VERIFIED" if uid and UID_PATTERN.match(uid) else "REJECTED"

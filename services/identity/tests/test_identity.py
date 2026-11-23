@@ -149,3 +149,25 @@ def test_every_tenant_table_has_row_level_security(env):
                               "where n.nspname = 'public' and c.relkind = 'r'")).all()
     missing = [r.relname for r in rows if not (r.relrowsecurity and r.relforcerowsecurity) and r.relname not in {"schema_migrations", "inbox", "denylist", "tombstones"}]
     assert missing == []
+
+
+def test_identity_check_runs_after_the_unlock_payment_once_and_emits_an_event(env):
+    from app.kyb import StubIdentityProvider
+    from app.service import run_identity_check
+    email = uniq()
+    org = env.onboard(email, **SME)["id"]
+    headers, _ = env.ctx_headers(email)
+    assert env.client.get("/v1/organizations/current", headers=headers).json()["kyc_status"] == "NONE"
+    event = {"id": str(uuid.uuid4()), "data": {"org_id": org, "application_id": str(uuid.uuid4()), "payment_id": str(uuid.uuid4())}}
+    for _ in range(2):  # the same payment event delivered twice
+        with env.db.system() as s:
+            run_identity_check(s, StubIdentityProvider(), event)
+    assert env.client.get("/v1/organizations/current", headers=headers).json()["kyc_status"] == "VERIFIED"
+    with env.db.system() as s:
+        n = s.execute(text("select count(*) from outbox where event_type like '%kyc_completed%' and org_id = :o"), {"o": org}).scalar()
+    assert n == 1
+
+
+def test_identity_check_rejects_a_company_without_a_valid_uid(env):
+    from app.kyb import StubIdentityProvider
+    assert StubIdentityProvider().verify_identity("x", "No UID AG", None) == "REJECTED"

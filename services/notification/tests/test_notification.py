@@ -49,7 +49,7 @@ def test_revoking_consent_removes_lender_notifications_but_not_the_smes(env):
 
 
 def test_every_rule_produces_valid_notes():
-    assert set(RULES) >= {"marketplace.loan.funded", "marketplace.loan.disputed", "marketplace.loan.cancelled", "billing.charge.status_changed"}
+    assert set(RULES) >= {"marketplace.loan.funded", "marketplace.loan.disputed", "marketplace.loan.cancelled", "billing.charge.status_changed", "billing.unlock.paid", "identity.organization.kyc_completed"}
 
 
 def test_read_state_and_isolation(env):

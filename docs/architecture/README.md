@@ -28,7 +28,7 @@
 | 07 | [Failure modes & risks](07-failure-modes-and-risks.md) | **Where this architecture can break**, how we detect it, and the design response |
 | 08 | [Security & data protection](08-security-and-data-protection.md) | Trust zones, data classification per service, authentication and authorization flow |
 | 09 | [Deployment & operations](09-deployment-and-operations.md) | Local/offline/live topology, pilot topology, CI/CD, backups and runbooks |
-| — | [ADRs](../adr/README.md) | 31 decisions with alternatives, consequences, compliance checks and revisit triggers |
+| — | [ADRs](../adr/README.md) | 32 decisions with alternatives, consequences, compliance checks and revisit triggers |
 
 ## System overview
 

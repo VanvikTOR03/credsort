@@ -78,6 +78,19 @@ def explain_scenario(ctx: dict) -> dict:
             "strengths": better, "concerns": worse, "data_gaps": [], "suggestions": []}
 
 
+def coach_reply(question: str, ctx: dict) -> str:
+    """Deterministic fallback for the assistant chat: built only from the verified explanation, never from free text."""
+    e = explain_assessment(ctx)
+    q = question.lower()
+    if any(w in q for w in ("improve", "increase", "raise", "better", "higher", "upgrade", "boost", "fix")):
+        if e["suggestions"]:
+            return "Here is what would help most right now: " + " ".join(e["suggestions"][:3]) + " You can try the what-if tab to see the effect before changing anything."
+        return "Nothing in your figures stands out as a weakness. Keeping profit stable and debt low is the best way to hold your category."
+    if any(w in q for w in ("why", "reason", "weigh", "low", "bad")):
+        return " ".join((e["concerns"] or e["strengths"])[:2]) or e["summary"]
+    return e["summary"] + " Ask me how to improve your rating or what a figure means."
+
+
 # ---- the guard ------------------------------------------------------------------------------
 _NUM = re.compile(r"\d[\d',]*\.?\d*")
 
@@ -123,10 +136,12 @@ def allowed_numbers(ctx: dict) -> set[Decimal]:
     return nums
 
 
-def invented_numbers(output: dict, ctx: dict) -> list[Decimal]:
+def invented_numbers(output: dict, ctx: dict, rounding: bool = False) -> list[Decimal]:
+    """Numbers in `output` that cannot be traced to `ctx`. Free-form chat may round (31 for 31.16); explanations may not."""
     allowed = allowed_numbers(ctx)
     bad = []
     for n in numbers_in(json.dumps(output, ensure_ascii=False)):
-        if not any(abs(abs(n) - a) <= Decimal("0.06") for a in allowed):
+        tol = Decimal("0.5") if rounding and n == n.to_integral_value() else Decimal("0.06")
+        if not any(abs(abs(n) - a) <= tol for a in allowed):
             bad.append(n)
     return bad

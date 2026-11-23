@@ -9,14 +9,15 @@ from credsort_common.security import KeyStore, Security
 
 from .api import build_router
 from .consumers import consumers
+from .plugins.gateway import build_gateway
 
 MIGRATIONS = Path(__file__).resolve().parents[1] / "migrations"
 
 
-def create_service_app(settings: Settings | None = None, db: Database | None = None, security: Security | None = None, keystore: KeyStore | None = None):
+def create_service_app(settings: Settings | None = None, db: Database | None = None, security: Security | None = None, keystore: KeyStore | None = None, gateway=None):
     keystore = keystore or KeyStore.from_env("billing")
     app, db, sec = create_app("billing", title="Billing", migrations_dir=MIGRATIONS, settings=settings, db=db, security=security, consumers=consumers())
-    app.include_router(build_router(db, sec, keystore))
+    app.include_router(build_router(db, sec, keystore, gateway or build_gateway()))
     return app
 
 

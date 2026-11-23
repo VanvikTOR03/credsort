@@ -86,14 +86,13 @@ def matches(db: Database, ctx: AccessContext) -> dict:
         ids = [uuid.UUID(a) for a, _ in order]
         offers = {o.application_id: o for o in s.execute(text("select application_id, id, status from offers where application_id = any(:a) and lender_org_id = :l and status in ('SUBMITTED','SELECTED','FUNDED') "
                                                               "order by created_at desc"), {"a": ids, "l": ctx.org_id}).all()} if ids else {}
-        requests = {q.application_id: q.status for q in s.execute(text("select application_id, status from access_requests where lender_org_id = :l order by created_at"), {"l": ctx.org_id}).all()}
     items = []
     for rank_no, (aid, m) in enumerate(order, 1):
         _, r = by_id[aid]
         uid = uuid.UUID(aid)
         items.append({"rank": rank_no, "application_id": uid, "score": m.score, "level": r.level, "as_of": r.as_of, "published_at": r.published_at,
                       "fields": {f: v for f, v in r.fields.items() if v is not None}, "explanation": m.explanation,
-                      "my_offer": {"id": offers[uid].id, "status": offers[uid].status} if uid in offers else None, "access_request": requests.get(uid)})
+                      "my_offer": {"id": offers[uid].id, "status": offers[uid].status} if uid in offers else None})
     return {"criteria_version": pref.version if pref else 0, "total": len(items), "items": items}
 
 
@@ -108,41 +107,15 @@ def lender_application(db: Database, ctx: AccessContext, app_id: uuid.UUID) -> d
         pref = s.execute(text("select criteria from lender_preferences order by version desc limit 1")).first()
         m = matching.evaluate(pref.criteria if pref else {}, r.fields)
         offer = s.execute(text("select id, status, amount, rate, term_months from offers where application_id = :a and lender_org_id = :l order by created_at desc limit 1"), {"a": app_id, "l": ctx.org_id}).first()
-        req = s.execute(text("select id, status, requested_fields from access_requests where application_id = :a and lender_org_id = :l order by created_at desc limit 1"), {"a": app_id, "l": ctx.org_id}).first()
         sme_org = _owner(s, app_id)  # elevated read of the owner id only, to attribute the audit record to the SME's stream
         record_audit(s, SVC, ctx, "application.viewed", f"application/{app_id}", org_id=sme_org)
     return {"application_id": app_id, "level": r.level, "as_of": r.as_of, "fields": {f: v for f, v in r.fields.items() if v is not None}, "labels": {f: CATALOGUE[f] for f in r.fields},
-            "match": {"score": m.score, "explanation": m.explanation} if m else None, "my_offer": dict(offer._mapping) if offer else None,
-            "access_request": dict(req._mapping) if req else None}
+            "match": {"score": m.score, "explanation": m.explanation} if m else None, "my_offer": dict(offer._mapping) if offer else None}
 
 
 def _owner(s, app_id):
     as_system(s)
     return s.execute(text("select sme_org_id from applications where id = :i"), {"i": app_id}).scalar()
-
-
-def request_access(db: Database, ctx: AccessContext, app_id: uuid.UUID, fields: list[str]) -> dict:
-    lender_only(ctx)
-    require_verified(ctx)
-    bad = [f for f in fields if f not in CATALOGUE]
-    if bad or not fields:
-        raise Unprocessable(f"unknown or empty field list: {bad}", code="unknown_fields")
-    with sess(db, ctx) as s:
-        mine = [r for r in _visible(s, ctx.org_id) if r.application_id == app_id]
-        if not mine:
-            raise NotFound("application not found")
-        sme_org = _owner(s, app_id)
-        set_context(s, ctx.org_id, "LENDER")
-        rid = uuid.uuid4()
-        try:
-            with s.begin_nested():
-                s.execute(text("insert into access_requests(id, application_id, sme_org_id, lender_org_id, requested_fields) values (:i, :a, :o, :l, :f)"),
-                          {"i": rid, "a": app_id, "o": sme_org, "l": ctx.org_id, "f": fields})
-        except Exception as exc:
-            raise Conflict("a request for this application is already pending", code="request_pending") from exc
-        emit(s, SVC, "marketplace.access.requested", sme_org, f"access/{rid}", {"application_id": app_id, "request_id": rid, "sme_org_id": sme_org, "lender_org_id": ctx.org_id})
-        record_audit(s, SVC, ctx, "access.requested", f"access/{rid}", org_id=sme_org)
-    return {"id": rid, "status": "PENDING"}
 
 
 # --------------------------------------------------------------------------- offers
@@ -232,11 +205,17 @@ def sme_offers(db: Database, ctx: AccessContext, app_id: uuid.UUID, sort: str) -
     if ctx.org_type not in ("SME", "FIDUCIARY"):
         raise Forbidden("only the SME sees offers on its application", code="org_type_forbidden")
     with sess(db, ctx) as s:
+        unlocked = s.execute(text("select unlocked_at is not null from applications where id = :a"), {"a": app_id}).scalar()
         rows = s.execute(text(f"select {OFFER_COLS} from offers where application_id = :a and status in ('SUBMITTED','SELECTED','FUNDED','CANCELLED') order by created_at"), {"a": app_id}).all()
     offers = [_offer_out(r, "sme") for r in rows]
     keys = {"total_cost": lambda o: (o["cost"]["total"], str(o["id"])), "rate": lambda o: (o["rate"], str(o["id"])),
             "amount": lambda o: (-o["amount"], str(o["id"]))}  # the SME's own key: never CredSort's revenue (ADR-0021)
-    return sorted(offers, key=keys.get(sort, keys["total_cost"]))
+    ordered = sorted(offers, key=keys.get(sort, keys["total_cost"]))
+    for position, o in enumerate(ordered):
+        o["unlocked"] = bool(unlocked)
+        if not unlocked:  # the lender's identity is only revealed after the one-off unlock fee has been paid
+            o["lender_name"] = f"Lender {chr(65 + position % 26)}"
+    return ordered
 
 
 def lender_offers(db: Database, ctx: AccessContext) -> list[dict]:
@@ -256,7 +235,9 @@ def select_offer(db: Database, quotes, ctx: AccessContext, offer_id: uuid.UUID, 
             offer = s.execute(text("select id, application_id, lender_org_id, status, valid_until, sme_quote_id, sme_quote_token, sme_fee_amount from offers where id = :i"), {"i": offer_id}).first()
             if not offer:
                 raise NotFound("offer not found")
-            app = s.execute(text("select id, status, sme_org_id from applications where id = :a for update"), {"a": offer.application_id}).first()  # serialises concurrent selections
+            app = s.execute(text("select id, status, sme_org_id, unlocked_at from applications where id = :a for update"), {"a": offer.application_id}).first()  # serialises concurrent selections
+            if app.unlocked_at is None:
+                raise Conflict("unlock the offers first to see who made them", code="not_unlocked")
             offer = s.execute(text("select id, application_id, lender_org_id, status, valid_until, sme_quote_id, sme_quote_token, sme_fee_amount from offers where id = :i for update"), {"i": offer_id}).first()
             if not can_move(APPLICATION, app.status, "OFFER_SELECTED") or not can_move(OFFER, offer.status, "SELECTED"):
                 raise Conflict("this offer can no longer be selected", code="offer_unavailable")
@@ -348,6 +329,16 @@ def notify_matches(session, event) -> None:
     if hits:
         emit(session, SVC, "marketplace.application.matched", event["credsortorgid"], f"application/{app_id}",
              {"application_id": app_id, "sme_org_id": event["credsortorgid"], "lender_org_ids": list(hits)})
+
+
+def mark_unlocked(session, event) -> None:
+    """The company paid the one-off unlock fee (Billing): lender identities become visible on that application. Idempotent."""
+    set_context(session, None, "SYSTEM")
+    d = event["data"]
+    changed = session.execute(text("update applications set unlocked_at = now() where id = :a and sme_org_id = :o and unlocked_at is null returning id"),
+                              {"a": d["application_id"], "o": d["org_id"]}).first()
+    if changed:
+        record_audit(session, SVC, None, "offers.unlocked", f"application/{d['application_id']}", org_id=d["org_id"])
 
 
 def delete_org_data(session, org_id) -> None:

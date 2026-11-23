@@ -60,3 +60,5 @@ def _no_active_book(env):
 
 SME_FEE = {"code": "SME_SUCCESS", "payer": "SME", "calculator": "PERCENT_OF_PRINCIPAL", "percent": "1.0", "min_amount": "1000", "cap_amount": "8000"}
 LENDER_FEE = {"code": "LENDER_SUCCESS", "payer": "LENDER", "calculator": "PERCENT_OF_PRINCIPAL", "percent": "0.75", "min_amount": "2000", "cap_amount": "7500"}
+
+UNLOCK_FEE = {"code": "SME_UNLOCK", "payer": "SME", "trigger": "OFFERS_UNLOCKED", "calculator": "FIXED", "amount": "190"}

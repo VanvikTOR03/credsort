@@ -101,10 +101,12 @@ class Env:
         assert r.status_code == 201, r.text
         return r.json()["id"]
 
-    def publish(self, headers, app_id=None, fields=SUMMARY, lenders=None, **kw):
+    def publish(self, headers, app_id=None, fields=SUMMARY, lenders=None, unlocked=True, **kw):
         app_id = app_id or self.draft(headers, **kw)
         r = self.client.post(f"/v1/applications/{app_id}/publication", json={"fields": fields, "lender_org_ids": lenders and [str(x) for x in lenders]}, headers=headers)
         assert r.status_code == 201, r.text
+        if unlocked:  # the company paid the one-off unlock fee (Billing event); most tests are about something else
+            self.as_owner("update applications set unlocked_at = now() where id = :a", a=app_id)
         return app_id
 
     def criteria(self, headers, **crit):

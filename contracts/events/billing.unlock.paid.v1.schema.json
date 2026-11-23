@@ -1,0 +1,26 @@
+{
+  "$id": "credsort.billing.unlock.paid.v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "application_id": {
+      "pattern": "^[0-9a-fA-F-]{36}$",
+      "type": "string"
+    },
+    "org_id": {
+      "pattern": "^[0-9a-fA-F-]{36}$",
+      "type": "string"
+    },
+    "payment_id": {
+      "pattern": "^[0-9a-fA-F-]{36}$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "org_id",
+    "application_id",
+    "payment_id"
+  ],
+  "title": "billing.unlock.paid",
+  "type": "object"
+}
