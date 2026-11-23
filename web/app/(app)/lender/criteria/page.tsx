@@ -32,11 +32,15 @@ export default function Criteria() {
   return (
     <div className="stack-l">
       <PageHeader title="Criteria" />
+      <div className="two-col">
+      <div className="stack-l">
       <Section title="Loan size (CHF)"><List><Field label="From"><input inputMode="numeric" value={c.amount_min ?? ""} onChange={(e) => set("amount_min", e.target.value.replace(/[^\d]/g, ""))} placeholder="100000" /></Field><Field label="To"><input inputMode="numeric" value={c.amount_max ?? ""} onChange={(e) => set("amount_max", e.target.value.replace(/[^\d]/g, ""))} placeholder="No limit" /></Field></List></Section>
       <Section title="Lowest category you accept"><div className="center"><Seg label="Lowest category" options={CATS} value={c.min_assessment_category} onChange={(v) => set("min_assessment_category", v)} /></div><p className="t-foot center" style={{ marginTop: 8 }}>A is strongest. {c.min_assessment_category} or better will match.</p></Section>
+      </div>
       <Section title="Industries">
         <div className="hstack wrap">{INDUSTRIES.map((i) => <button key={i} className="chip" aria-pressed={c.industries.includes(i)} onClick={() => set("industries", c.industries.includes(i) ? c.industries.filter((x: string) => x !== i) : [...c.industries, i])}>{i[0].toUpperCase() + i.slice(1)}</button>)}</div>
       </Section>
+      </div>
       <Button variant="secondary" onClick={() => setMore(!more)}>{more ? "Hide" : "Show"} more filters</Button>
       {more && (
         <div className="stack-l enter">

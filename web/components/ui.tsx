@@ -33,11 +33,11 @@ export function Section({ title, footer, children, action }: { title?: string; f
 
 export const List = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => <div className={`list ${className}`}>{children}</div>;
 
-export function Row({ icon, color, title, sub, value, href, onClick, chevron, children, noicon, style, ariaLabel }:
-  { icon?: string; color?: string; title: React.ReactNode; sub?: React.ReactNode; value?: React.ReactNode; href?: string; onClick?: () => void; chevron?: boolean; children?: React.ReactNode; noicon?: boolean; style?: React.CSSProperties; ariaLabel?: string }) {
+export function Row({ icon, color, tone, title, sub, value, href, onClick, chevron, children, noicon, style, ariaLabel }:
+  { icon?: string; color?: string; tone?: "ok" | "warn" | "bad"; title: React.ReactNode; sub?: React.ReactNode; value?: React.ReactNode; href?: string; onClick?: () => void; chevron?: boolean; children?: React.ReactNode; noicon?: boolean; style?: React.CSSProperties; ariaLabel?: string }) {
   const body = (
     <>
-      {icon && <Tile name={icon} color={color} />}
+      {icon && <Tile name={icon} tone={tone} />}
       <div className="grow"><div className="title">{title}</div>{sub && <div className="sub">{sub}</div>}</div>
       {value !== undefined && <div className="val">{value}</div>}
       {children}
@@ -115,10 +115,10 @@ export function Ring({ value, max = 100, size = 132, stroke = 12, color = "var(-
   );
 }
 
-export function Meter({ value, max = 100, label }: { value: number; max?: number; label?: string }) {
+export function Meter({ value, max = 100, label, tone }: { value: number; max?: number; label?: string; tone?: "ok" | "warn" | "bad" }) {
   const [w, setW] = useState(0);
   useEffect(() => { const t = requestAnimationFrame(() => setW((value / max) * 100)); return () => cancelAnimationFrame(t); }, [value, max]);
-  return <div className="meter" role="progressbar" aria-valuenow={value} aria-valuemax={max} aria-label={label}><i style={{ width: `${w}%` }} /></div>;
+  return <div className={`meter ${tone ?? ""}`} role="progressbar" aria-valuenow={value} aria-valuemax={max} aria-label={label}><i style={{ width: `${w}%` }} /></div>;
 }
 
 export function Empty({ icon, color = "gray", title, text, action }: { icon: string; color?: string; title: string; text?: string; action?: React.ReactNode }) {
@@ -127,7 +127,7 @@ export function Empty({ icon, color = "gray", title, text, action }: { icon: str
 
 export function ErrorNote({ error, retry }: { error: { detail: string } | null; retry?: () => void }) {
   if (!error) return null;
-  return <div className="banner" role="alert"><Tile name="warning" color="orange" size="sm" /><div className="grow">{error.detail}</div>{retry && <Button size="sm" variant="secondary" onClick={retry}>Retry</Button>}</div>;
+  return <div className="banner" role="alert"><Tile name="warning" tone="warn" size="sm" /><div className="grow">{error.detail}</div>{retry && <Button size="sm" variant="secondary" onClick={retry}>Retry</Button>}</div>;
 }
 
 export function Field({ label, hint, children, error }: { label: string; hint?: string; children: React.ReactNode; error?: string }) {

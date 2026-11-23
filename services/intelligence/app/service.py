@@ -193,7 +193,7 @@ def entitlements_for(db: Database, billing, ctx: AccessContext) -> list[str]:
 
 def run_scenario(db: Database, billing, ctx: AccessContext, assessment_id: uuid.UUID, inputs: dict) -> dict:
     if "WHAT_IF" not in entitlements_for(db, billing, ctx):
-        raise Forbidden("what-if analysis is not part of your plan", code="feature_not_included")
+        raise Forbidden("the rating simulator is not part of your plan", code="feature_not_included")
     with db.session(ctx.effective_org_id) as s:
         row = s.execute(text("select s.data from assessments a join snapshots s on s.id = a.snapshot_id where a.id = :i"), {"i": assessment_id}).first()
         if not row:

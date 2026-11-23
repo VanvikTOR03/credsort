@@ -16,6 +16,7 @@ export default function Accountant() {
   return (
     <div className="stack-l">
       <PageHeader title="Accountant" back="/sme/more" />
+      <div className="two-col">
       <Section title="Who has access">
         {d.loading ? <ListSkeleton rows={1} /> : d.data?.filter((x) => !x.revoked_at).length ? (
           <List>{d.data.filter((x) => !x.revoked_at).map((x) => <Row key={x.id} icon="people" color="green" title={x.fiduciary_name} sub={`Since ${ago(x.granted_at)}`}><Button size="sm" variant="danger-soft" onClick={async () => { await api("identity", `/v1/delegations/${x.id}`, { method: "DELETE" }); invalidate("identity"); toast("Access removed"); }}>Remove</Button></Row>)}</List>
@@ -26,6 +27,7 @@ export default function Accountant() {
         <div style={{ marginTop: 12 }}><ErrorNote error={err} /></div>
         <div style={{ marginTop: 12 }}><Button block onClick={grant} disabled={code.trim().length < 4}>Give access</Button></div>
       </Section>
+      </div>
     </div>
   );
 }

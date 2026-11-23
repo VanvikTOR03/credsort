@@ -21,7 +21,7 @@ CredSort turns a company's accounting data into one standardised financing profi
 | For companies | For lenders |
 |---|---|
 | Connect accounting (bexio) once, get a transparent credit-health score | Only see companies that match your own criteria |
-| Try what-ifs: how would lower costs or less debt change the score? | Standardised, verified figures instead of PDF piles |
+| Rating simulator: how would lower costs or less debt change the score? | Standardised, verified figures instead of PDF piles |
 | Share your full profile only with lenders that match, stop sharing any time | Filter on the complete profile with your own criteria |
 | Compare offers by **total cost**, including all fees | Simple offer flow, payout confirmation, clear pipeline |
 | **Free to sign up. One-off CHF 190 per request** to unlock lender names (covers the identity check) | **Success fee** only when a loan is paid out |
@@ -59,7 +59,7 @@ flowchart TB
 |---|---|
 | **identity** | Organisations, members, verification, accountant delegation, short-lived context tokens |
 | **accounting** | Accounting connections (bexio, demo data) and background imports |
-| **intelligence** | Financial data pipeline: mapping, metrics, scorecard, what-if scenarios |
+| **intelligence** | Financial data pipeline: mapping, metrics, scorecard, rating simulator |
 | **marketplace** | Loan requests, consent, frozen published profiles, matching, offers, payout and disputes |
 | **billing** | Price books, signed fee quotes, charges (exactly as quoted), the company unlock payment and its gateway |
 | **advisory** | Plain-language explanations and the company assistant (Groq LLM, template fallback); replies with invented numbers are discarded |

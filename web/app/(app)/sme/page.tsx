@@ -46,7 +46,7 @@ export default function SmeHome() {
           <div className="kpis">
             <Card className="kpi enter" style={{ "--i": 1 } as any}>
               <span className="l">Rating</span>
-              <span className="v">{latest ? latest.category : "n/a"}</span>
+              <span className="v" style={{ color: latest ? CATEGORY[latest.category]?.color : undefined }}>{latest ? latest.category : "n/a"}</span>
               <div className="meter" style={{ marginTop: 6 }}><i style={{ width: `${latest?.score ?? 0}%` }} /></div>
               <span className="c">{latest ? `${latest.score} of 100 · ${CATEGORY[latest.category]?.word}${latest.source_type === "SYNTHETIC" ? " · demo data" : ""}` : ""}</span>
             </Card>
@@ -60,7 +60,7 @@ export default function SmeHome() {
 
           <Section title="More">
             <List>
-              <Row icon="sliders" title="What-if" href="/sme/finances?tab=whatif" />
+              <Row icon="sliders" title="Rating simulator" href="/sme/finances?tab=whatif" />
               <Row icon="shield" title="Privacy" href="/sme/privacy" />
               <Row icon="receipt" title="Fees" href="/sme/fees" />
             </List>

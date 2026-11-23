@@ -6,7 +6,7 @@ import { Button, Card, Empty, ErrorNote, PageHeader, Pill, Sheet, Skeleton, Succ
 import { Tile } from "@/components/Icon";
 import { RangeBar } from "@/components/RangeBar";
 import { useToast } from "@/components/Providers";
-import { APP_STATUS, OFFER_STATUS, REPAYMENT } from "@/lib/labels";
+import { APP_STATUS, CATEGORY, OFFER_STATUS, REPAYMENT } from "@/lib/labels";
 import { chf, date, daysLeft, ratePct } from "@/lib/format";
 import { fairRange, fairTag, fmtRange, monthlyAnnuity } from "@/lib/loan";
 
@@ -73,7 +73,7 @@ export default function LoanDetail() {
       {a.status === "PUBLISHED" && (
         <div className="stack-l">
           <div className="kpis">
-            {assessment && <Card className="kpi"><span className="l">Rating</span><span className="v">{assessment.category}</span><span className="c">{assessment.score} of 100</span></Card>}
+            {assessment && <Card className="kpi"><span className="l">Rating</span><span className="v" style={{ color: CATEGORY[assessment.category]?.color }}>{assessment.category}</span><span className="c">{assessment.score} of 100</span></Card>}
             {range && <Card className="kpi"><span className="l">Fair rate range</span><span className="v">{fmtRange(range)}</span><RangeBar range={range} /></Card>}
           </div>
 

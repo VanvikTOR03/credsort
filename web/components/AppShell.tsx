@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import React, { useEffect, useRef, useState } from "react";
-import { Icon, Logo } from "./Icon";
+import { Icon, Logo, Tile } from "./Icon";
 import { useSession, useToast } from "./Providers";
 import { invalidate, useApi } from "@/lib/client/api";
 import { Button } from "./ui";
@@ -86,7 +86,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </header>
       {s.org.kyb_status === "PENDING" && !first && (
-        <div className="container" style={{ paddingTop: 16 }}><div className="banner">Your organization is being verified. Some actions unlock afterwards.</div></div>
+        <div className="container" style={{ paddingTop: 16 }}><div className="banner"><Tile name="warning" tone="warn" size="sm" />Your organization is being verified. Some actions unlock afterwards.</div></div>
       )}
       {acting && !first && (
         <div className="container" style={{ paddingTop: 16 }}>

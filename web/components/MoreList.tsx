@@ -14,6 +14,7 @@ export function MorePage({ extra, danger }: { extra?: React.ReactNode; danger?: 
   return (
     <div className="stack-l">
       <PageHeader title="More" subtitle={`${s.user.name} · ${s.org.name}`} />
+      <div className="two-col">
       {extra}
       <Section title="General">
         <List>
@@ -27,6 +28,7 @@ export function MorePage({ extra, danger }: { extra?: React.ReactNode; danger?: 
           {danger && <Row icon="trash" color="red" title="Delete my data" sub="Ask us to erase your organization" onClick={() => setDel(true)} />}
         </List>
       </Section>
+      </div>
       <Sheet open={del} onClose={() => setDel(false)} title={sent ? "Request received" : "Delete your data?"}>
         <div className="stack">{sent ? <p>We started the deletion. Your data is removed from every part of CredSort. Some records must be kept by law and are anonymized instead.</p> : <>
           <p>This removes your organization, your numbers and your requests from every part of CredSort. It cannot be undone. Records we must keep by law are anonymized.</p><ErrorNote error={err} />

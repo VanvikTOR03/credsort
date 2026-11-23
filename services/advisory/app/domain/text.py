@@ -74,7 +74,7 @@ def explain_scenario(ctx: dict) -> dict:
         (better if improves else worse).append(line)
     head = (f"Score moves from {before['score']} to {after['score']}; category {before['category']} to {after['category']}"
             if before["score"] != after["score"] else f"Score stays at {after['score']}; category {after['category']}")
-    return {"headline": head, "summary": "This what-if scenario was calculated deterministically on a copy of your figures. " + " ".join(sc["assumptions"]),
+    return {"headline": head, "summary": "This simulation was calculated on a copy of your figures. " + " ".join(sc["assumptions"]),
             "strengths": better, "concerns": worse, "data_gaps": [], "suggestions": []}
 
 
@@ -84,7 +84,7 @@ def coach_reply(question: str, ctx: dict) -> str:
     q = question.lower()
     if any(w in q for w in ("improve", "increase", "raise", "better", "higher", "upgrade", "boost", "fix")):
         if e["suggestions"]:
-            return "Here is what would help most right now: " + " ".join(e["suggestions"][:3]) + " You can try the what-if tab to see the effect before changing anything."
+            return "Here is what would help most right now: " + " ".join(e["suggestions"][:3]) + " You can try the Simulator tab to see the effect before changing anything."
         return "Nothing in your figures stands out as a weakness. Keeping profit stable and debt low is the best way to hold your category."
     if any(w in q for w in ("why", "reason", "weigh", "low", "bad")):
         return " ".join((e["concerns"] or e["strengths"])[:2]) or e["summary"]

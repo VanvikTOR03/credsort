@@ -15,7 +15,7 @@ export default function Loans() {
       ) : (
         <List>{list.map((a) => {
           const st = APP_STATUS[a.status] ?? { label: a.status, tone: undefined };
-          return <Row key={a.id} icon="loan" color={a.status === "FUNDED" ? "green" : a.status === "DRAFT" ? "gray" : "orange"} href={`/sme/loans/${a.id}`} title={<span className="num">{chf(a.amount)}</span>}
+          return <Row key={a.id} icon="loan" tone={a.status === "FUNDED" ? "ok" : undefined} href={`/sme/loans/${a.id}`} title={<span className="num">{chf(a.amount)}</span>}
             sub={`${a.term_months} months${a.purpose ? ` · ${a.purpose}` : ""} · ${ago(a.created_at)}`} value={<span className="hstack" style={{ gap: 8 }}>{a.status === "PUBLISHED" && a.open_offers > 0 && <Pill tone="accent">{a.open_offers} offer{a.open_offers > 1 ? "s" : ""}</Pill>}<Pill tone={st.tone}>{st.label}</Pill></span>} />;
         })}</List>
       )}

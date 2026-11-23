@@ -44,14 +44,18 @@ export default function LenderApp() {
           <div className="grow">{d.my_offer ? <Button block variant="secondary" href="/lender/offers">You already made an offer</Button> : <Button block onClick={() => { setF({ ...f, amount: String(Math.round(Number(d.fields.requested_amount ?? 0)) || "") }); setOffer(true); }}>Make an offer</Button>}</div>
         </div>
       )}
+      <div className="two-col">
       <Section title="Company profile">
         <List>{fields.map(([k, v]) => <Row key={k} noicon title={d.labels[k] ?? k} value={<b style={{ color: "var(--label)" }}>{show(k, v)}</b>} />)}</List>
       </Section>
+        <div className="stack-l">
       {d.match && (
-        <Section title="Why it matches">
-          <List>{d.match.explanation.map((e: any, i: number) => <Row key={i} icon={e.met ? "check" : "x"} color={e.met ? "green" : "red"} title={e.criterion} value={<span className="num">{e.actual}</span>} />)}</List>
-        </Section>
-      )}
+          <Section title="Why it matches">
+            <List>{d.match.explanation.map((e: any, i: number) => <Row key={i} icon={e.met ? "check" : "x"} tone={e.met ? "ok" : "bad"} title={e.criterion} value={<span className="num">{e.actual}</span>} />)}</List>
+          </Section>
+        )}
+        </div>
+      </div>
       <Sheet open={offer} onClose={() => setOffer(false)} title="Your offer">
         <div className="stack">
           <List>

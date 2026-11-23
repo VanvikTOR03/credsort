@@ -236,3 +236,27 @@ a.row, button.row { cursor: pointer; } a.row:hover, button.row:hover { backgroun
 .pay-ok { width: 64px; height: 64px; border-radius: 50%; background: var(--green); display: grid; place-items: center; animation: burst .4s var(--ease) both; }
 .secure svg { width: 14px; height: 14px; flex: none; } .secure { white-space: nowrap; }
 .logo { text-decoration: none; }
+
+/* ---------- status clues: the only colour besides navy. Green = good, amber = warning, red = problem ---------- */
+.tile.tone-ok, .tile.c-green { background: linear-gradient(180deg, #5CBB8A 0%, #31996A 52%, #1F7A4D 100%); }
+.tile.tone-warn, .tile.c-orange { background: linear-gradient(180deg, #F6CD66 0%, #E6AA2C 52%, #C98A12 100%); }
+.tile.tone-bad, .tile.c-red { background: linear-gradient(180deg, #E67F77 0%, #CA473E 52%, #B3342C 100%); }
+.tile.tone-ok, .tile.c-green, .tile.tone-warn, .tile.c-orange, .tile.tone-bad, .tile.c-red { box-shadow: inset 0 1px 0 rgba(255,255,255,.4), inset 0 -1px 0 rgba(0,0,0,.18), 0 1px 2px rgba(2,12,35,.22), 0 5px 10px -4px rgba(2,12,35,.30); }
+.meter.ok > i { background: var(--green); } .meter.warn > i { background: #D99A1E; } .meter.bad > i { background: var(--red); }
+
+/* ---------- rhythm: tighter, grouped, two columns where it helps ---------- */
+.page { padding-top: 28px; }
+.title-row { margin-bottom: 22px; }
+.stack-l { gap: 26px; }
+.two-col { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 26px 24px; align-items: start; }
+.two-col > .stack-l, .two-col > .stack { min-width: 0; }
+
+/* ---------- iOS feel: press feedback and a cascading entrance ---------- */
+.btn:active { transform: scale(.97); } .btn { transition: background .15s, color .15s, border-color .15s, opacity .15s, transform .15s var(--ease); }
+a.row:active, button.row:active { background: var(--line-2); }
+.chip:active { transform: scale(.96); } .tab:active { transform: scale(.94); } .tab { transition: transform .15s var(--ease), color .15s; }
+.card.lift:active { transform: scale(.995); }
+.stack-l > * { animation: rise .4s var(--ease) both; }
+.stack-l > *:nth-child(2) { animation-delay: 40ms; } .stack-l > *:nth-child(3) { animation-delay: 80ms; } .stack-l > *:nth-child(4) { animation-delay: 120ms; }
+.stack-l > *:nth-child(5) { animation-delay: 160ms; } .stack-l > *:nth-child(n+6) { animation-delay: 200ms; }
+.two-col > * { animation: rise .4s var(--ease) both; } .two-col > *:nth-child(2) { animation-delay: 60ms; } .two-col > *:nth-child(3) { animation-delay: 120ms; }

@@ -30,7 +30,7 @@ flowchart LR
     S1["Sign up + company"] --> S3["Connect bexio or synthetic data"]
     S3 --> S4["Financial dashboard"]
     S4 --> S5["Assessment + Data Confidence"]
-    S5 --> S6["AI advisor / what-if (P1)"]
+    S5 --> S6["AI advisor / rating simulator (P1)"]
     S5 --> S7["Loan application"]
     S7 --> S8["Request offers: set the loan, agree to share the full profile"]
     S9["Compare offers + fee quotes"] --> S10["Select one offer"]
@@ -58,7 +58,7 @@ After selection, the lender and the SME complete the loan **directly** (contract
 | S3 | **Data connection** | Bring accounting data in | Connect bexio (OAuth) or choose a synthetic dataset; import jobs (pending / running / completed / failed), last update, retry | Accounting Integration | P0 |
 | S4 | **Financial dashboard** | Understand the financial position | Revenue and growth, EBITDA margin, equity ratio, current ratio, Debt/EBITDA, receivables aging; trends; quality flags; *unavailable* shown as such, never as 0 | Financial Intelligence | P0 |
 | S5 | **Assessment** | Preliminary, explainable assessment | Category/score, positive and negative factors, missing information, **Data Confidence** (separate), pipeline versions, disclaimer "not a bank rating" | Financial Intelligence | P0 |
-| S6 | **AI advisor & what-if** | Explore improvements | Explanation; recommendations; scenario such as "reduce debt by CHF 200,000" with before/after (calculated deterministically, explained by AI) | Advisory + Financial Intelligence (+ Billing entitlement) | P1 |
+| S6 | **AI advisor & rating simulator** (tab "Simulator") | Explore improvements | Explanation; recommendations; scenario such as "reduce debt by CHF 200,000" with before/after (calculated deterministically, explained by AI) | Advisory + Financial Intelligence (+ Billing entitlement) | P1 |
 | S7 | **Loan application wizard** | Describe the financing need | Amount, term, purpose, collateral, additional information; draft | Marketplace | P0 |
 | S8 | **Publish & consent** | Decide what lenders may see and use | Field allowlist; recipient scope; **preview "what lenders see"** (the frozen published profile); publish (free) | Marketplace (+ Intelligence for the profile, Billing for the quote) | P0 |
 | S9 | **Offers & comparison** | Compare offers | Rate, fees, amount, maturity, repayment schedule, collateral, **total financing cost**, CredSort fee per offer; illustrative fair-rate band (P1); sort by the SME's chosen key | Marketplace (+ Billing quotes) | P0 (band P1) |

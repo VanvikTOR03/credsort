@@ -17,9 +17,9 @@ function Inner() {
   return (
     <div className="stack-l">
       <PageHeader title="Finances" />
-      <div className="center"><Seg label="Finance sections" value={tab} onChange={setTab} options={[{ value: "score", label: "Score" }, { value: "whatif", label: "What-if" }, { value: "data", label: "Data" }]} /></div>
+      <div className="center"><Seg label="Finance sections" value={tab} onChange={setTab} options={[{ value: "score", label: "Score" }, { value: "whatif", label: "Simulator" }, { value: "data", label: "Data" }]} /></div>
       {tab === "score" && <ScoreTab goData={() => setTab("data")} />}
-      {tab === "whatif" && <WhatIfTab />}
+      {tab === "whatif" && <SimulatorTab />}
       {tab === "data" && <DataTab />}
     </div>
   );
@@ -40,7 +40,8 @@ function ScoreTab({ goData }: { goData: () => void }) {
   const metrics: any[] = detail.data?.metrics ?? [];
   const byCode = Object.fromEntries(metrics.map((m) => [m.code, m]));
   return (
-    <div className="stack-l">
+    <div className="two-col">
+      <div className="stack-l">
       {!a ? <Skeleton h={190} r={20} /> : (
         <Card className="enter stack">
           <div className="hstack" style={{ gap: 20 }}>
@@ -57,6 +58,21 @@ function ScoreTab({ goData }: { goData: () => void }) {
         </Card>
       )}
 
+      {a && (
+        <Section title="What drives your score">
+          <List>
+            {a.factors.map((f: any) => (
+              <button className="row noicon" key={f.code} onClick={() => setOpen(f.code)} style={{ flexDirection: "column", alignItems: "stretch", gap: 8 }}>
+                <div className="hstack spread"><span className="title">{f.label}</span><span className="num muted">{fmtMetric(f.code, "RATIO", f.value)}</span></div>
+                <Meter value={f.points} tone={f.points >= 70 ? "ok" : f.points >= 40 ? "warn" : "bad"} label={`${f.label}: ${f.points} of 100`} />
+              </button>
+            ))}
+          </List>
+        </Section>
+      )}
+
+      </div>
+      <div className="stack-l">
       {explain.data && (
         <Card className="stack-s enter" style={{ "--i": 1 } as any}>
           <div className="hstack"><Tile name="spark" color="purple" size="sm" /><div className="t-head">What this means</div></div>
@@ -68,19 +84,6 @@ function ScoreTab({ goData }: { goData: () => void }) {
         </Card>
       )}
 
-      {a && (
-        <Section title="What drives your score">
-          <List>
-            {a.factors.map((f: any) => (
-              <button className="row noicon" key={f.code} onClick={() => setOpen(f.code)} style={{ flexDirection: "column", alignItems: "stretch", gap: 8 }}>
-                <div className="hstack spread"><span className="title">{f.label}</span><span className="num muted">{fmtMetric(f.code, "RATIO", f.value)}</span></div>
-                <Meter value={f.points} label={`${f.label}: ${f.points} of 100`} />
-              </button>
-            ))}
-          </List>
-        </Section>
-      )}
-
       {METRIC_GROUPS.map((g) => (
         <Section key={g.title} title={g.title}>
           <List>{g.codes.filter((c) => byCode[c]).map((c) => (
@@ -88,6 +91,7 @@ function ScoreTab({ goData }: { goData: () => void }) {
           ))}</List>
         </Section>
       ))}
+      </div>
       <Sheet open={!!open} onClose={() => setOpen(null)} title={a?.factors.find((f: any) => f.code === open)?.label}>
         {open && <div className="stack"><p>{METRIC_HELP[open]}</p><Button block variant="secondary" onClick={() => setOpen(null)}>Got it</Button></div>}
       </Sheet>
@@ -95,8 +99,8 @@ function ScoreTab({ goData }: { goData: () => void }) {
   );
 }
 
-/* ---------------- What-if ---------------- */
-function WhatIfTab() {
+/* ---------------- Rating simulator ---------------- */
+function SimulatorTab() {
   const list = useApi<any[]>("intelligence", "/v1/assessments");
   const id = list.data?.[0]?.id;
   const [rev, setRev] = useState(0), [cost, setCost] = useState(0), [debt, setDebt] = useState(0);
@@ -123,22 +127,27 @@ function WhatIfTab() {
   const delta = a && b ? a.score - b.score : 0;
   const slider = (label: string, v: number, set: (n: number) => void, min: number, max: number, step: number, unit: string) => (
     <div className="stack-s"><div className="hstack spread"><label className="title">{label}</label><b className="num" style={{ color: v ? "var(--accent)" : undefined }}>{v > 0 && unit === "%" && label.startsWith("Sales") ? "+" : ""}{unit === "CHF" ? chf(v) : `${v}%`}</b></div>
-      <input type="range" min={min} max={max} step={step} value={v} onChange={(e) => set(Number(e.target.value))} aria-label={label} /></div>
+      <input className="range" type="range" min={min} max={max} step={step} value={v} onChange={(e) => set(Number(e.target.value))} aria-label={label} /></div>
   );
   return (
-    <div className="stack-l">
+    <div className="two-col">
+      <div className="stack-l">
       <Card className="stack enter">
+        <span className="t-over">Rating simulator</span>
         {slider("Sales change", rev, setRev, -30, 30, 1, "%")}
         {slider("Cost reduction", cost, setCost, 0, 20, 1, "%")}
         {slider("Pay down debt from cash", debt, setDebt, 0, 200000, 5000, "CHF")}
         <div className="hstack spread"><span className="t-foot">Nothing is saved. This is an estimate, not a promise.</span>{(rev || cost || debt) ? <Button size="sm" variant="plain" onClick={() => { setRev(0); setCost(0); setDebt(0); }}>Reset</Button> : null}</div>
       </Card>
+      {!!res?.assumptions?.length && <Section title="Assumptions"><Card className="stack-s">{res.assumptions.map((s: string) => <p key={s} className="t-foot">{s}</p>)}</Card></Section>}
+      </div>
+      <div className="stack-l">
       <ErrorNote error={err} />
       {a && b && (
         <Card className="stack enter" style={{ "--i": 1, opacity: busy ? .6 : 1, transition: "opacity .2s" } as any}>
           <div className="hstack" style={{ justifyContent: "space-around" }}>
             <div className="center"><div className="t-over">Now</div><div className="num t-large">{b.score}</div><Pill>{b.category}</Pill></div>
-            <Tile name="arrow" color={delta >= 0 ? "green" : "red"} />
+            <Tile name="arrow" tone={delta > 0 ? "ok" : delta < 0 ? "bad" : undefined} />
             <div className="center"><div className="t-over">After</div><div className="num t-large" style={{ color: delta > 0 ? "var(--green)" : delta < 0 ? "var(--red)" : undefined }}>{a.score}</div><Pill tone={a.category !== b.category ? (delta > 0 ? "green" : "red") : undefined}>{a.category}</Pill></div>
           </div>
           <p className="center muted">{delta === 0 ? "No change in your score." : `${delta > 0 ? "Up" : "Down"} ${Math.abs(delta)} point${Math.abs(delta) === 1 ? "" : "s"}.`}</p>
@@ -149,7 +158,7 @@ function WhatIfTab() {
         </Card>
       )}
       {explain.data && <Card className="stack-s"><div className="hstack"><Tile name="spark" color="purple" size="sm" /><div className="t-head">What changes</div></div><p>{explain.data.summary}</p>{explain.data.suggestions?.map((s: string) => <p key={s} className="muted">{s}</p>)}</Card>}
-      {res?.assumptions && <Section title="Assumptions"><Card className="stack-s">{res.assumptions.map((s: string) => <p key={s} className="t-foot">{s}</p>)}</Card></Section>}
+      </div>
     </div>
   );
 }
@@ -198,7 +207,7 @@ function DataTab() {
       </Section>
       {!!jobs.data?.length && (
         <Section title="Recent imports"><List>{jobs.data.slice(0, 4).map((j) => (
-          <Row key={j.id} icon={j.status === "COMPLETED" ? "check" : j.status === "FAILED" ? "warning" : "refresh"} color={j.status === "COMPLETED" ? "green" : j.status === "FAILED" ? "red" : "blue"} title={j.status === "COMPLETED" ? "Import finished" : j.status === "FAILED" ? "Import failed" : "Import running"} sub={j.failure_reason ?? ago(j.finished_at ?? j.created_at)} />
+          <Row key={j.id} icon={j.status === "COMPLETED" ? "check" : j.status === "FAILED" ? "warning" : "refresh"} tone={j.status === "COMPLETED" ? "ok" : j.status === "FAILED" ? "bad" : undefined} title={j.status === "COMPLETED" ? "Import finished" : j.status === "FAILED" ? "Import failed" : "Import running"} sub={j.failure_reason ?? ago(j.finished_at ?? j.created_at)} />
         ))}</List></Section>
       )}
       <Sheet open={sheet} onClose={() => setSheet(false)} title="Choose a sample company">

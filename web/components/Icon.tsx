@@ -64,9 +64,9 @@ export function Icon({ name, className, title }: { name: IconName | string; clas
 }
 
 /** iOS-style app-icon tile: squircle, vertical gradient, inner highlight, soft coloured shadow. */
-/** iOS-style app icon. `color` is accepted for compatibility and ignored: every icon is navy. */
-export function Tile({ name, size, className = "" }: { name: IconName | string; color?: string; size?: "xs" | "sm" | "lg" | "xl"; className?: string }) {
-  return <span className={`tile ${size ?? ""} ${className}`}><Icon name={name} /></span>;
+/** iOS-style app icon, navy by default. `tone` is for status clues only: green for good, amber for a warning, red for a problem. */
+export function Tile({ name, size, className = "", tone }: { name: IconName | string; color?: string; size?: "xs" | "sm" | "lg" | "xl"; className?: string; tone?: "ok" | "warn" | "bad" }) {
+  return <span className={`tile ${size ?? ""} ${tone ? `tone-${tone}` : ""} ${className}`}><Icon name={name} /></span>;
 }
 
 /** The one CredSort mark, used everywhere. It always links home ("/" sends a signed-in user to their own home, everyone else to sign-in). */

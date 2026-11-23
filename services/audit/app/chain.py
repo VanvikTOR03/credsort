@@ -16,7 +16,7 @@ LABELS = {
     "connection.created": "Accounting source connected", "connection.revoked": "Accounting source disconnected",
     "import.requested": "Import started", "import.completed": "Accounting data imported", "import.failed": "Import failed", "ledger.read": "Data read to build your profile",
     "assessment.created": "Financial profile created", "assessment.failed": "Profile could not be built", "profile.extracted": "Shared fields prepared for publication",
-    "advisory.context.read": "Figures read to explain your assessment", "scenario.created": "What-if scenario calculated", "explanation.created": "Explanation created",
+    "advisory.context.read": "Figures read to explain your assessment", "scenario.created": "Rating simulation run", "explanation.created": "Explanation created",
     "application.created": "Application created", "application.updated": "Application edited", "application.published": "Application published to lenders",
     "application.withdrawn": "Application withdrawn", "application.viewed": "A lender viewed your shared information",
     "disclosure.revoked": "Sharing revoked", "access.requested": "A lender asked for more information", "access.approved": "More information shared with a lender",

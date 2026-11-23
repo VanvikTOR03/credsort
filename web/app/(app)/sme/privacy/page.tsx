@@ -16,6 +16,8 @@ export default function Privacy() {
   return (
     <div className="stack-l">
       <PageHeader title="Privacy" />
+      <div className="two-col">
+      <div className="stack">
       <Section title="Currently shared">
         {disclosures.loading ? <ListSkeleton rows={2} /> : disclosures.data?.length ? (
           <List>{disclosures.data.map((d) => (
@@ -23,11 +25,13 @@ export default function Privacy() {
         ) : <Card><p className="muted" style={{ padding: "20px 0" }}>Nothing is shared</p></Card>}
       </Section>
       {!!disclosures.data?.length && <Button block variant="danger-soft" onClick={() => setConfirmAll(true)}>Stop sharing with everyone</Button>}
+      </div>
       <Section title="Activity">
         {activity.loading ? <ListSkeleton rows={3} /> : activity.data?.length ? (
           <List>{activity.data.slice(0, 12).map((a) => <Row key={a.id} icon="clock" color="gray" title={a.label} sub={`${a.by === "you" ? "You" : a.by === "platform" ? "CredSort" : "Someone else"} · ${ago(a.occurred_at)}`} />)}</List>
         ) : <Card><p className="muted center">No activity yet.</p></Card>}
       </Section>
+      </div>
       <Sheet open={confirmAll} onClose={() => setConfirmAll(false)} title="Stop sharing with everyone?">
         <div className="stack"><p>Every lender loses access right away. Your requests stay saved and you can request offers again later.</p><ErrorNote error={err} /><Button block variant="danger" onClick={revokeAll}>Stop sharing</Button><Button block variant="plain" onClick={() => setConfirmAll(false)}>Cancel</Button></div>
       </Sheet>

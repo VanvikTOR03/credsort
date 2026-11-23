@@ -81,7 +81,7 @@ function Page() {
           <Card className="stack">
             <span className="t-over">Accounts</span>
             {hasData && source ? (
-              <div className="hstack"><Tile name="check" size="sm" /><div style={{ flex: 1 }}>{source.source_type === "BEXIO" ? "bexio" : "Demo accounts"}<span className="muted"> · {date(source.last_period_end)}</span></div></div>
+              <div className="hstack"><Tile name="check" size="sm" tone="ok" /><div style={{ flex: 1 }}>{source.source_type === "BEXIO" ? "bexio" : "Demo accounts"}<span className="muted"> · {date(source.last_period_end)}</span></div></div>
             ) : importing ? (
               <div className="hstack"><span className="spinner" /><div style={{ flex: 1 }}><Meter value={progress} label="Import progress" /></div></div>
             ) : (

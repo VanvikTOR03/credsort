@@ -15,6 +15,7 @@ export default function Review() {
   return (
     <div className="stack-l">
       <PageHeader title="Review" />
+      <div className="two-col">
       <Section title={`Waiting (${pending.length})`}>
         {orgs.loading ? <ListSkeleton rows={2} /> : pending.length ? (
           <div className="stack">{pending.map((o) => { const [i, c] = ICON[o.type] ?? ICON.SME; return (
@@ -28,6 +29,7 @@ export default function Review() {
             {o.status === "ACTIVE" && <Button size="sm" variant="danger-soft" onClick={() => act(o.id, "suspend", "Suspended")}>Suspend</Button>}
           </Row>); })}</List>
       </Section>
+      </div>
     </div>
   );
 }
