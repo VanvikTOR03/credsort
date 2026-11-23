@@ -227,3 +227,6 @@ a.row, button.row { cursor: pointer; } a.row:hover, button.row:hover { backgroun
 .pay-done { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 24px 0; text-align: center; }
 .pay-ok { width: 64px; height: 64px; border-radius: 50%; background: var(--green); display: grid; place-items: center; animation: burst .4s var(--ease) both; }
 .secure svg { width: 14px; height: 14px; flex: none; } .secure { white-space: nowrap; }
+.auth-links { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; align-items: center; }
+.auth-foot .btn.block { width: 100%; }
+.logo { text-decoration: none; }

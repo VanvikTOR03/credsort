@@ -1,3 +1,4 @@
+import Link from "next/link";
 import React from "react";
 
 // A small, consistent glyph set: filled, rounded, one idea per icon (recognition over recall).
@@ -68,7 +69,7 @@ export function Tile({ name, size, className = "" }: { name: IconName | string; 
   return <span className={`tile ${size ?? ""} ${className}`}><Icon name={name} /></span>;
 }
 
-/** The one CredSort mark, used everywhere (sign-in, onboarding, app header). */
-export function Logo({ size = "sm" }: { size?: "xs" | "sm" | "lg" }) {
-  return <span className="logo"><Tile name="sortmark" size={size} />CredSort</span>;
+/** The one CredSort mark, used everywhere. It always links home ("/" sends a signed-in user to their own home, everyone else to sign-in). */
+export function Logo({ size = "sm", href = "/", onClick }: { size?: "xs" | "sm" | "lg"; href?: string; onClick?: (e: React.MouseEvent) => void }) {
+  return <Link href={href} onClick={onClick} className="logo" aria-label="CredSort home"><Tile name="sortmark" size={size} />CredSort</Link>;
 }

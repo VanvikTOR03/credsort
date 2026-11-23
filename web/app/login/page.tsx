@@ -1,70 +1,62 @@
 "use client";
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
-import { Icon, Logo, Tile } from "@/components/Icon";
+import { Logo } from "@/components/Icon";
 import { Seg } from "@/components/ui";
 
-type Acct = { group: string; email: string; name: string; org: string; icon: string };
 type Who = "company" | "lender";
 
 export default function Login() {
-  const [accts, setAccts] = useState<Acct[] | null>(null);
   const [who, setWho] = useState<Who>("company");
-  const [staff, setStaff] = useState(false);
-  const [busy, setBusy] = useState<string | null>(null);
-  const [err, setErr] = useState("");
+  const [accountant, setAccountant] = useState(false);
+  const [email, setEmail] = useState(""), [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false), [err, setErr] = useState("");
   const [invite, setInvite] = useState(false), [code, setCode] = useState("");
-  useEffect(() => { fetch("/api/auth/demo").then((r) => (r.ok ? r.json() : [])).then(setAccts).catch(() => setAccts([])); }, []);
+  const [demo, setDemo] = useState(false);
+  // The Demo link only exists where demo accounts exist (never in production).
+  useEffect(() => { fetch("/api/auth/demo").then((r) => (r.ok ? r.json() : [])).then((l) => setDemo(Array.isArray(l) && l.length > 0)).catch(() => setDemo(false)); }, []);
 
-  async function go(a: Acct) {
-    setBusy(a.email); setErr("");
-    const r = await fetch("/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: a.email, name: a.name }) });
+  async function submit(e: React.FormEvent) {
+    e.preventDefault(); setBusy(true); setErr("");
+    const r = await fetch("/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email, password }) });
     if (r.ok) { location.href = "/"; return; }
     const j = await r.json().catch(() => ({}));
-    setErr(j.detail || "Could not sign in."); setBusy(null);
+    setErr(j.detail ?? "Could not sign in."); setBusy(false);
   }
-  const list = (accts ?? []).filter((a) => (staff ? ["Accountant", "Operator"].includes(a.group) : who === "company" ? a.group === "SME" : a.group === "Lender"));
+  const type = accountant ? "accountant" : who;
 
   return (
     <main className="auth">
-      <div className="auth-box">
+      <form className="auth-box" onSubmit={submit} noValidate>
         <div className="auth-top">
           <Logo size="lg" />
-          <Seg label="Sign in as" options={[{ value: "company", label: "Company" }, { value: "lender", label: "Lender" }]} value={who} onChange={(v) => { setWho(v); setStaff(false); }} />
+          {accountant ? <h1 className="t-title">Accountant sign-in</h1> : <Seg label="Sign in as" options={[{ value: "company", label: "Company" }, { value: "lender", label: "Lender" }]} value={who} onChange={setWho} />}
         </div>
 
-        {accts === null && <div className="center"><span className="spinner" /></div>}
-        {accts && accts.length === 0 && <p className="center muted">Single sign-on is not connected.</p>}
-        {accts && accts.length > 0 && (
-          <div className="list" key={`${who}${staff}`}>
-            {list.map((a, i) => (
-              <button key={a.email} className="row enter" style={{ "--i": i } as React.CSSProperties} onClick={() => go(a)} disabled={!!busy}>
-                <Tile name={a.icon} size="sm" />
-                <div className="grow"><div className="title">{a.org}</div><div className="sub">{a.name}</div></div>
-                {busy === a.email ? <span className="spinner" /> : <Icon name="chevron" className="chev" />}
-              </button>
-            ))}
-          </div>
-        )}
-        {err && <p className="field-error center" role="alert">{err}</p>}
+        <div className="stack">
+          <div><label className="lbl" htmlFor="em">Email</label><input id="em" className="in" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus /></div>
+          <div><label className="lbl" htmlFor="pw">Password</label><input id="pw" className="in" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
+          {err && <p className="field-error" role="alert">{err}</p>}
+          <button className="btn block" type="submit" disabled={busy || !email || !password}>{busy && <span className="spinner" />}Sign in</button>
+        </div>
 
         <div className="auth-foot">
-          {who === "company" && !staff && (
-            <>
-              <Link href="/signup" className="btn secondary block">Create account</Link>
-              {!invite ? (
-                <button className="btn plain" onClick={() => setInvite(true)}>Invitation code</button>
-              ) : (
-                <form className="hstack enter" style={{ width: "100%" }} onSubmit={(e) => { e.preventDefault(); if (code.trim()) location.href = `/signup?code=${encodeURIComponent(code.trim().toUpperCase())}`; }}>
-                  <input className="in" value={code} onChange={(e) => setCode(e.target.value)} placeholder="CS-XXXXXX" aria-label="Invitation code" autoFocus />
-                  <button className="btn" type="submit" disabled={!code.trim()}>Continue</button>
-                </form>
-              )}
-            </>
+          <Link href={`/signup?type=${type}`} className="btn secondary block">{accountant ? "Create accountant account" : "Create account"}</Link>
+          <div className="auth-links">
+            {who === "company" && !accountant && <button type="button" className="btn plain" onClick={() => setInvite(!invite)}>Invitation code</button>}
+            {who === "company" && !accountant && <button type="button" className="btn plain" onClick={() => setAccountant(true)}>Accountant or team</button>}
+            {accountant && <button type="button" className="btn plain" onClick={() => setAccountant(false)}>Back</button>}
+            {demo && <Link href="/login/demo" className="btn plain">Demo</Link>}
+          </div>
+          {invite && who === "company" && !accountant && (
+            <div className="hstack enter" style={{ width: "100%" }}>
+              <input className="in" value={code} onChange={(e) => setCode(e.target.value)} placeholder="CS-XXXXXX" aria-label="Invitation code" autoFocus
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (code.trim()) location.href = `/signup?type=company&code=${encodeURIComponent(code.trim().toUpperCase())}`; } }} />
+              <button type="button" className="btn" disabled={!code.trim()} onClick={() => { location.href = `/signup?type=company&code=${encodeURIComponent(code.trim().toUpperCase())}`; }}>Continue</button>
+            </div>
           )}
-          <button className="btn plain t-foot" onClick={() => setStaff(!staff)}>{staff ? "Back" : "Accountant or team"}</button>
         </div>
-      </div>
+      </form>
     </main>
   );
 }

@@ -171,3 +171,65 @@ def test_identity_check_runs_after_the_unlock_payment_once_and_emits_an_event(en
 def test_identity_check_rejects_a_company_without_a_valid_uid(env):
     from app.kyb import StubIdentityProvider
     assert StubIdentityProvider().verify_identity("x", "No UID AG", None) == "REJECTED"
+
+
+# ===================================================================================== local passwords
+def login(env, email, password):
+    return env.client.post("/v1/auth/login", json={"email": email, "password": password})
+
+
+def test_a_company_signs_up_with_a_password_and_can_log_in(env):
+    email = uniq()
+    env.onboard(email, password="correct horse battery", **SME)
+    r = login(env, email.upper(), "correct horse battery")  # email is case-insensitive
+    assert r.status_code == 200 and r.json()["email"] == email.lower()
+    with env.db.system() as s:
+        stored = s.execute(text("select c.password_hash from credentials c join users u on u.id = c.user_id where u.email = :e"), {"e": email.lower()}).scalar()
+    assert stored.startswith("scrypt$") and "correct horse" not in stored  # only a salted hash is stored
+
+
+def test_wrong_password_and_unknown_email_look_the_same(env):
+    email = uniq()
+    env.onboard(email, password="correct horse battery", **SME)
+    wrong, unknown = login(env, email, "not the password"), login(env, uniq(), "whatever it is")
+    assert wrong.status_code == unknown.status_code == 401
+    assert wrong.json()["code"] == unknown.json()["code"] == "invalid_credentials" and wrong.json()["detail"] == unknown.json()["detail"]
+
+
+def test_five_failures_lock_the_account_for_fifteen_minutes(env):
+    email = uniq()
+    env.onboard(email, password="correct horse battery", **SME)
+    for _ in range(5):
+        assert login(env, email, "nope nope nope").status_code == 401
+    locked = login(env, email, "correct horse battery")  # even the right password is refused while locked
+    assert locked.status_code == 429 and locked.json()["code"] == "too_many_attempts"
+    with env.db.system() as s:  # time passes
+        s.execute(text("update credentials set locked_until = now() - interval '1 minute' where user_id = (select id from users where email = :e)"), {"e": email.lower()})
+    assert login(env, email, "correct horse battery").status_code == 200
+    assert login(env, email, "nope nope nope").status_code == 401  # the counter was reset by the successful login
+    with env.db.system() as s:
+        assert s.execute(text("select failed_attempts from credentials where user_id = (select id from users where email = :e)"), {"e": email.lower()}).scalar() == 1
+
+
+def test_sign_up_rejects_weak_passwords_and_never_takes_over_an_existing_email(env):
+    email = uniq()
+    assert env.client.post("/v1/organizations", json={**SME, "password": "short"}, headers=env.user(email)).status_code == 422
+    env.onboard(email, password="correct horse battery", **SME)
+    again = env.client.post("/v1/organizations", json={**SME, "password": "another long password"}, headers=env.user(email))
+    assert again.status_code == 409 and again.json()["code"] == "email_taken"
+    assert login(env, email, "another long password").status_code == 401  # the original password still rules
+
+
+def test_accounts_without_a_password_cannot_log_in_with_one(env):
+    email = uniq()
+    env.onboard(email, **SME)  # created without a password, like the seeded demo accounts
+    assert login(env, email, "anything at all").status_code == 401
+    with env.db.system() as s:
+        assert s.execute(text("select count(*) from credentials c join users u on u.id = c.user_id where u.email = :e"), {"e": email.lower()}).scalar() == 0
+
+
+def test_lender_and_accountant_sign_up_with_a_password_and_wait_for_verification(env):
+    lender, accountant = uniq(), uniq()
+    assert env.onboard(lender, type="LENDER", legal_name="Regionalbank AG", uid="CHE-111.222.333", password="correct horse battery")["kyb_status"] == "PENDING"
+    assert env.onboard(accountant, type="FIDUCIARY", legal_name="Treuhand AG", uid="CHE-444.555.666", password="correct horse battery")["kyb_status"] == "PENDING"
+    assert login(env, lender, "correct horse battery").status_code == 200 and login(env, accountant, "correct horse battery").status_code == 200

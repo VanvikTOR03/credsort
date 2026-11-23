@@ -141,6 +141,19 @@
             "title": "Legal Name",
             "type": "string"
           },
+          "password": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 10,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Password"
+          },
           "referral_code": {
             "anyOf": [
               {
@@ -179,6 +192,28 @@
           "legal_name"
         ],
         "title": "OrgCreate",
+        "type": "object"
+      },
+      "PasswordLogin": {
+        "properties": {
+          "email": {
+            "maxLength": 200,
+            "minLength": 3,
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "PasswordLogin",
         "type": "object"
       },
       "TokenRequest": {
@@ -479,6 +514,42 @@
           }
         },
         "summary": "Verify"
+      }
+    },
+    "/v1/auth/login": {
+      "post": {
+        "operationId": "password_login_v1_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordLogin"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Password Login"
       }
     },
     "/v1/context-tokens": {

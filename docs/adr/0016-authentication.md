@@ -43,3 +43,13 @@ Confidentiality is the top characteristic. Revision 1 deferred a real identity p
 ## Revisit when
 
 A lender requires federation with its own IdP (configure brokering); or Keycloak's operating cost outweighs a managed IdP in the pilot region.
+
+## Addendum (2026-11-24): local passwords until Keycloak is connected
+
+Keycloak cannot be run in the development and demo environment, so Identity also supports **local email and password sign-in** for companies, lenders and accountants (`POST /v1/auth/login`, password set at sign-up).
+
+- **Storage:** salted `scrypt` hashes in an Identity-only `credentials` table (row-level security: readable only by the Identity service acting as the platform). Passwords are never logged, put in events, or returned.
+- **Rules:** at least 10 characters; 5 failed attempts lock the account for 15 minutes; an unknown email and a wrong password get the same answer and take equally long.
+- **No takeover:** registering with a password for an email that already has a user is refused (`email_taken`).
+- **Demo accounts** (seeded, synthetic) have no password and sign in with one click from the Demo page. The Demo page and the dev session minting exist only when `AUTH_MODE=dev` and are refused in production.
+- **Production** still signs in through Keycloak (this addendum does not replace it): the BFF then refuses password sign-in. Password reset and multi-factor login are not part of this addendum.

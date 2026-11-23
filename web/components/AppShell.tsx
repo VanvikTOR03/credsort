@@ -62,7 +62,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="shell">
       <header className="topbar">
         <div className="container">
-          <Link href={homeFor(kind)} aria-label="CredSort home"><Logo /></Link>
+          <Logo />
           {!first && <nav className="topnav" aria-label="Main">{nav.map((i) => <Link key={i.href} href={i.href} aria-current={active(i) ? "page" : undefined}>{i.label}</Link>)}</nav>}
           {first && <span className="topright t-foot">2 / 3</span>}
           {!first && (
@@ -85,6 +85,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           )}
         </div>
       </header>
+      {s.org.kyb_status === "PENDING" && !first && (
+        <div className="container" style={{ paddingTop: 16 }}><div className="banner">Your organization is being verified. Some actions unlock afterwards.</div></div>
+      )}
       {acting && !first && (
         <div className="container" style={{ paddingTop: 16 }}>
           <div className="banner"><div className="grow" style={{ flex: 1 }}>Acting for <b>{acting.name}</b></div><Button size="sm" variant="secondary" onClick={stopActing}>Stop</Button></div>

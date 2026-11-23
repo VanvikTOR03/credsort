@@ -1,6 +1,7 @@
 """Identity use cases: onboarding, context tokens, members, delegation, admin (ADR-0002, ADR-0019, ADR-0020, ADR-0027)."""
 from __future__ import annotations
 
+import datetime as dt
 import secrets
 import uuid
 
@@ -8,11 +9,12 @@ from sqlalchemy import text
 
 from credsort_common.audit import record_audit
 from credsort_common.db import Database, set_context
-from credsort_common.errors import Conflict, Forbidden, NotFound, Unprocessable
+from credsort_common.errors import Conflict, Forbidden, NotFound, TooManyAttempts, Unauthorized, Unprocessable
 from credsort_common.events import emit
 from credsort_common.security import AccessContext, KeyStore, new_context_claims
 
 from .kyb import KybProvider
+from .passwords import DUMMY_HASH, hash_password, verify_password
 from .usertoken import UserIdentity
 
 SVC = "identity"
@@ -86,15 +88,20 @@ def issue_context_token(db: Database, keystore: KeyStore, who: UserIdentity, org
 
 # --------------------------------------------------------------------------- onboarding
 def create_organization(db: Database, kyb: KybProvider, who: UserIdentity, *, org_type: str, legal_name: str, uid: str | None,
-                        legal_form: str | None, industry: str | None, employees: int | None, referral_code: str | None, canton: str | None = None) -> dict:
+                        legal_form: str | None, industry: str | None, employees: int | None, referral_code: str | None, canton: str | None = None,
+                        password: str | None = None) -> dict:
     if org_type == "PLATFORM":
         raise Forbidden("platform organizations are created by operators", code="org_type_forbidden")
     with db.system() as s:
         user = _find_user(s, who)
+        if password is not None and user is not None:  # registering with a password never takes over an existing account
+            raise Conflict("an account with this email already exists", code="email_taken")
         if user is None:
             user_id = uuid.uuid4()
             s.execute(text("insert into users(id, keycloak_sub, email, display_name) values (:i, :s, :e, :n)"),
                       {"i": user_id, "s": who.sub, "e": who.email, "n": who.name})
+            if password is not None:
+                s.execute(text("insert into credentials(user_id, password_hash) values (:u, :h)"), {"u": user_id, "h": hash_password(password)})
         else:
             user_id = user.id
         referrer = None
@@ -116,6 +123,38 @@ def create_organization(db: Database, kyb: KybProvider, who: UserIdentity, *, or
             emit(s, SVC, "identity.organization.verification_changed", org_id, f"organization/{org_id}", {"org_id": org_id, "kyb_status": status}, version=2)
         record_audit(s, SVC, None, "organization.created", f"organization/{org_id}", org_id=org_id, actor_user_id=user_id)
         return {"id": org_id, "type": org_type, "kyb_status": status}
+
+
+MAX_FAILED_ATTEMPTS, LOCKOUT = 5, dt.timedelta(minutes=15)
+
+
+def password_login(db: Database, email: str, password: str) -> dict:
+    """Checks a local password. Same answer for an unknown email and a wrong password; 5 failures lock the account for 15 minutes."""
+    email = email.strip().lower()
+    failure: Exception | None = None
+    result: dict | None = None
+    with db.system() as s:  # the counter must be saved even when the attempt fails, so errors are raised after the block
+        row = s.execute(text("select u.email, u.display_name, c.user_id, c.password_hash, c.failed_attempts, c.locked_until from users u "
+                             "join credentials c on c.user_id = u.id where u.email = :e"), {"e": email}).first()
+        now = dt.datetime.now(dt.timezone.utc)
+        if row is None:
+            verify_password(password, DUMMY_HASH)
+            failure = Unauthorized("Email or password is wrong", code="invalid_credentials")
+        elif row.locked_until is not None and row.locked_until > now:
+            failure = TooManyAttempts("Too many attempts. Try again in a few minutes.", code="too_many_attempts")
+        elif verify_password(password, row.password_hash):
+            s.execute(text("update credentials set failed_attempts = 0, locked_until = null, updated_at = now() where user_id = :u"), {"u": row.user_id})
+            result = {"email": row.email, "name": row.display_name}
+        else:
+            fails = row.failed_attempts + 1
+            if fails >= MAX_FAILED_ATTEMPTS:
+                s.execute(text("update credentials set failed_attempts = 0, locked_until = :l, updated_at = now() where user_id = :u"), {"l": now + LOCKOUT, "u": row.user_id})
+            else:
+                s.execute(text("update credentials set failed_attempts = :f, updated_at = now() where user_id = :u"), {"f": fails, "u": row.user_id})
+            failure = Unauthorized("Email or password is wrong", code="invalid_credentials")
+    if failure is not None:
+        raise failure
+    return result  # type: ignore[return-value]
 
 
 def run_identity_check(session, provider, event) -> None:

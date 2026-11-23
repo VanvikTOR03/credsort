@@ -44,6 +44,10 @@ class Unprocessable(DomainError):
     status, code = 422, "unprocessable"
 
 
+class TooManyAttempts(DomainError):
+    status, code = 429, "too_many_attempts"
+
+
 class UpstreamUnavailable(DomainError):
     status, code = 503, "upstream_unavailable"
 

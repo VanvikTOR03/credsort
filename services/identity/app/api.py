@@ -29,6 +29,12 @@ class OrgCreate(BaseModel):
     employees: int | None = Field(default=None, ge=0, le=100000)
     canton: str | None = Field(default=None, pattern=r"^[A-Z]{2}$")
     referral_code: str | None = None
+    password: str | None = Field(default=None, min_length=10, max_length=128)  # local password; never logged or returned
+
+
+class PasswordLogin(BaseModel):
+    email: str = Field(min_length=3, max_length=200)
+    password: str = Field(min_length=1, max_length=128)
 
 
 class MemberAdd(BaseModel):
@@ -56,6 +62,11 @@ def build_router(db: Database, sec: Security, keystore: KeyStore, kyb: KybProvid
     def jwks():
         return keystore.jwks()
 
+    # ---- public, called by the BFF before any session exists (rate-limited at the edge) ----
+    @r.post("/v1/auth/login")
+    def password_login(body: PasswordLogin):
+        return svc.password_login(db, body.email, body.password)
+
     # ---- user-token endpoints (called by the BFF) ----
     @r.get("/v1/me")
     def me(who: UserIdentity = Depends(user_identity)):
@@ -68,7 +79,7 @@ def build_router(db: Database, sec: Security, keystore: KeyStore, kyb: KybProvid
     @r.post("/v1/organizations", status_code=201)
     def create_org(body: OrgCreate, who: UserIdentity = Depends(user_identity)):
         return svc.create_organization(db, kyb, who, org_type=body.type, legal_name=body.legal_name, uid=body.uid, legal_form=body.legal_form,
-                                       industry=body.industry, employees=body.employees, canton=body.canton, referral_code=body.referral_code)
+                                       industry=body.industry, employees=body.employees, canton=body.canton, referral_code=body.referral_code, password=body.password)
 
     # ---- context-token endpoints ----
     @r.get("/v1/organizations/current")

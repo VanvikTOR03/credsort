@@ -84,7 +84,7 @@ function Checkout() {
   return (
     <div className="pay-page">
       <div className="pay-box">
-        <div className="hstack spread"><Logo /><span className="secure"><Icon name="lock" />Secure checkout</span></div>
+        <div className="hstack spread"><Logo href={`/sme/loans/${id}`} onClick={(e) => { if (window.opener && !back) { e.preventDefault(); window.close(); } }} /><span className="secure"><Icon name="lock" />Secure checkout</span></div>
         <form className="pay-card" onSubmit={submitCard} noValidate>
           <div className="stack-s"><span className="t-over">CredSort unlock fee</span><div className="num t-large">{amount || <span className="skel" style={{ display: "inline-block", width: 120, height: 34 }} />}</div></div>
           <div className="pay-tabs" role="tablist" aria-label="Payment method">

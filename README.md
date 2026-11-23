@@ -103,7 +103,7 @@ Wait for `seed done`.
 cd web && npm run dev
 ```
 
-Open **http://localhost:3000** and pick a demo profile. All data is synthetic and the dev login needs no password.
+Open **http://localhost:3000**. Sign in with an account you create (password sign-up for companies, lenders and accountants), or use the **Demo** link for one-click, pre-made synthetic companies and lenders.
 
 ### Demo walkthrough
 
