@@ -3,7 +3,8 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { api, invalidate, newKey, useApi } from "@/lib/client/api";
 import { Button, Card, Empty, ErrorNote, PageHeader, Pill, Sheet, Skeleton, Success } from "@/components/ui";
-import { Icon } from "@/components/Icon";
+import { Tile } from "@/components/Icon";
+import { RangeBar } from "@/components/RangeBar";
 import { useToast } from "@/components/Providers";
 import { APP_STATUS, OFFER_STATUS, REPAYMENT } from "@/lib/labels";
 import { chf, date, daysLeft, ratePct } from "@/lib/format";
@@ -70,52 +71,53 @@ export default function LoanDetail() {
       {a.status === "DRAFT" && <Button href={`/sme/loans/new?draft=${a.id}`}>Continue</Button>}
 
       {a.status === "PUBLISHED" && (
-        <div className="stack">
-          <div className="hstack wrap" style={{ gap: 32 }}>
-            {assessment && <div className="stat"><span className="l">Rating</span><span className="v">{assessment.category}</span></div>}
-            {range && <div className="stat"><span className="l">Fair rate</span><span className="v">{fmtRange(range)}</span></div>}
+        <div className="stack-l">
+          <div className="kpis">
+            {assessment && <Card className="kpi"><span className="l">Rating</span><span className="v">{assessment.category}</span><span className="c">{assessment.score} of 100</span></Card>}
+            {range && <Card className="kpi"><span className="l">Fair rate range</span><span className="v">{fmtRange(range)}</span><RangeBar range={range} /></Card>}
           </div>
 
           {n > 0 && !unlocked && (
             <div className="unlock-bar">
-              <div className="hstack"><Icon name="lock" /><span>Lenders hidden</span></div>
+              <div className="hstack"><Tile name="lock" /><div><div className="t-head">Lenders hidden</div><div className="t-foot">Unlock once to see who made the offers</div></div></div>
               <Button onClick={checkout} disabled={!priced}>{priced ? `Unlock · ${chf(price.data.amount)}` : "Unlock"}</Button>
             </div>
           )}
 
-          {offers.loading ? <Skeleton h={120} r={6} /> : n === 0 ? <Empty icon="clock" title="No offers yet" /> : (
-            <div>
-              <div className="offer-head"><span>Lender</span><span>Rate</span><span>Amount</span><span>Monthly</span><span /></div>
-              <div className="offers">
-                {open.map((o, i) => {
-                  const tag = fairTag(Number(o.rate), range);
-                  return (
-                    <div key={o.id} className="offer enter" style={{ "--i": i } as any}>
-                      <div className="who">
-                        <span className={`avatar ${unlocked ? "" : "locked"}`}>{unlocked ? o.lender_name.charAt(0).toUpperCase() : ""}</span>
-                        <div style={{ minWidth: 0 }}>
-                          {i === 0 && n > 1 && <span className="best">Best</span>}
-                          <div className="t-head">{unlocked ? o.lender_name : <span className="redact" aria-label="Hidden until unlocked" />}</div>
-                          {tag && <div className={`fair ${tag.cls}`}>{tag.label}</div>}
-                        </div>
+          {offers.loading ? <Skeleton h={120} r={16} /> : n === 0 ? <Card><Empty icon="clock" title="No offers yet" /></Card> : (
+            <div className="offer-list">
+              {open.map((o, i) => {
+                const tag = fairTag(Number(o.rate), range);
+                return (
+                  <Card key={o.id} className="offer enter" style={{ "--i": i } as any}>
+                    <div className="who">
+                      <span className={`avatar ${unlocked ? "" : "locked"}`}>{unlocked ? o.lender_name.charAt(0).toUpperCase() : ""}</span>
+                      <div style={{ minWidth: 0 }}>
+                        {i === 0 && n > 1 && <span className="best">Best offer</span>}
+                        <div className="t-head">{unlocked ? o.lender_name : <span className="redact" aria-label="Hidden until unlocked" />}</div>
+                        <div className="t-foot">{chf(o.amount, { compact: true })} · {Math.round(o.term_months / 12)} years</div>
                       </div>
-                      <div><div className="k">Rate</div><div className="rate num">{Number(o.rate).toFixed(2)}%</div></div>
-                      <div><div className="k">Amount</div><div className="v">{chf(o.amount, { compact: true })} · {Math.round(o.term_months / 12)}y</div></div>
-                      <div><div className="k">Monthly</div><div className="v">≈ {chf(monthlyOf(o))}</div></div>
-                      <div className="act"><Button size="sm" variant="secondary" onClick={() => { setErr(null); setDetail(o); }}>Details</Button></div>
                     </div>
-                  );
-                })}
-              </div>
+                    <div className="mid">
+                      <div className="hstack spread"><span className="rate num">{Number(o.rate).toFixed(2)}%</span>{tag && <span className={`fair ${tag.cls}`}>{tag.label}</span>}</div>
+                      {range && <RangeBar range={range} value={Number(o.rate)} tone={tag?.cls} />}
+                    </div>
+                    <div><div className="k">Monthly</div><div className="v">≈ {chf(monthlyOf(o))}</div></div>
+                    <div className="act"><Button size="sm" variant="secondary" onClick={() => { setErr(null); setDetail(o); }}>Details</Button></div>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </div>
       )}
 
       {live && <OfferSummary o={live} />}
+      <Card className="stack"><span className="t-over">Progress</span>
       <div className="timeline">
         {stages.map((s, i) => <div className="item" key={s}><span className="dot" style={{ background: i <= stageIdx ? "var(--navy)" : "var(--bg)" }} /><span style={{ fontWeight: i === stageIdx ? 600 : 400, color: i <= stageIdx ? "var(--ink)" : "var(--ink-3)" }}>{s}</span></div>)}
       </div>
+      </Card>
       {(a.status === "PUBLISHED" || a.status === "DRAFT") && <div><Button variant="plain" onClick={() => setWithdraw(true)}>Withdraw request</Button></div>}
 
       <Sheet open={!!detail} onClose={() => setDetail(null)} title={detail ? (unlocked ? detail.lender_name : "Offer") : ""}>

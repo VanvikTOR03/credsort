@@ -2,8 +2,8 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api, invalidate, newKey, useApi } from "@/lib/client/api";
-import { Button, ErrorNote, Meter, PageHeader, Sheet } from "@/components/ui";
-import { Icon } from "@/components/Icon";
+import { Button, Card, ErrorNote, Meter, PageHeader, Sheet } from "@/components/ui";
+import { Icon, Tile } from "@/components/Icon";
 import { useToast } from "@/components/Providers";
 import { chf, date } from "@/lib/format";
 import { monthlyAnnuity } from "@/lib/loan";
@@ -59,29 +59,31 @@ function Page() {
     <div>
       <PageHeader title="Loan request" back={first ? undefined : "/sme/loans"} />
       <div className="need-grid">
-        <div className="stack-l">
-          <div className="stack">
-            <div className="hstack spread"><label className="t-over" htmlFor="amt">Amount</label><b className="num t-title">{chf(amount)}</b></div>
-            <input id="amt" className="range" type="range" min={25000} max={2000000} step={5000} value={amount} onChange={(e) => setAmount(Number(e.target.value))} />
-            <div className="hstack spread t-cap"><span>CHF 25k</span><span>CHF 2M</span></div>
-          </div>
-          <div className="stack">
-            <div className="hstack spread"><label className="t-over" htmlFor="term">Term</label><b className="num t-title">{years} {years === 1 ? "year" : "years"}</b></div>
-            <input id="term" className="range" type="range" min={1} max={10} step={1} value={years} onChange={(e) => setYears(Number(e.target.value))} />
-            <div className="hstack spread t-cap"><span>1 year</span><span>10 years</span></div>
-          </div>
-          <div className="stack-s">
+        <div className="stack-l" style={{ gap: 20 }}>
+          <Card className="stack-l" style={{ gap: 28 }}>
+            <div className="stack">
+              <div className="hstack spread"><label className="t-over" htmlFor="amt">Amount</label><b className="num t-title">{chf(amount)}</b></div>
+              <input id="amt" className="range" type="range" min={25000} max={2000000} step={5000} value={amount} onChange={(e) => setAmount(Number(e.target.value))} />
+              <div className="hstack spread t-cap"><span>CHF 25k</span><span>CHF 2M</span></div>
+            </div>
+            <div className="stack">
+              <div className="hstack spread"><label className="t-over" htmlFor="term">Term</label><b className="num t-title">{years} {years === 1 ? "year" : "years"}</b></div>
+              <input id="term" className="range" type="range" min={1} max={10} step={1} value={years} onChange={(e) => setYears(Number(e.target.value))} />
+              <div className="hstack spread t-cap"><span>1 year</span><span>10 years</span></div>
+            </div>
+          </Card>
+          <Card className="stack">
             <span className="t-over">Purpose</span>
             <div className="hstack wrap">{PURPOSES.map((p) => <button key={p} className="chip" aria-pressed={purpose === p} onClick={() => setPurpose(p)}>{p}</button>)}</div>
-          </div>
-          <div><label className="t-over" htmlFor="col" style={{ display: "block", marginBottom: 8 }}>Collateral</label><select id="col" className="in" value={collateral} onChange={(e) => setCollateral(e.target.value)}>{COLLATERAL.map((c) => <option key={c}>{c}</option>)}</select></div>
-
-          <div className="stack-s">
+            <label className="t-over" htmlFor="col" style={{ marginTop: 8 }}>Collateral</label>
+            <select id="col" className="in" value={collateral} onChange={(e) => setCollateral(e.target.value)}>{COLLATERAL.map((c) => <option key={c}>{c}</option>)}</select>
+          </Card>
+          <Card className="stack">
             <span className="t-over">Accounts</span>
             {hasData && source ? (
-              <div className="banner"><Icon name="check" /><div style={{ flex: 1 }}>{source.source_type === "BEXIO" ? "bexio" : "Demo accounts"}<span className="muted"> · {date(source.last_period_end)}</span></div></div>
+              <div className="hstack"><Tile name="check" size="sm" /><div style={{ flex: 1 }}>{source.source_type === "BEXIO" ? "bexio" : "Demo accounts"}<span className="muted"> · {date(source.last_period_end)}</span></div></div>
             ) : importing ? (
-              <div className="banner"><span className="spinner" /><div style={{ flex: 1 }}><Meter value={progress} label="Import progress" /></div></div>
+              <div className="hstack"><span className="spinner" /><div style={{ flex: 1 }}><Meter value={progress} label="Import progress" /></div></div>
             ) : (
               <div className="grid c2">
                 <button className="btn secondary" onClick={bexio}><Icon name="refresh" />bexio</button>
@@ -90,13 +92,13 @@ function Page() {
                 <button className="btn secondary" onClick={() => setInviteSheet(true)}><Icon name="people" />Fiduciary</button>
               </div>
             )}
-          </div>
+          </Card>
         </div>
 
         <aside className="panel stack">
           <dl className="kv"><dt>Amount</dt><dd>{chf(amount)}</dd><dt>Term</dt><dd>{years} {years === 1 ? "year" : "years"}</dd><dt>Purpose</dt><dd>{purpose}</dd></dl>
           <hr className="sep" />
-          <div><div className="t-over">Monthly</div><div className="num t-large" style={{ marginTop: 4 }}>≈ {chf(monthly)}</div><div className="t-cap" style={{ marginTop: 4 }}>3.0% p.a., illustrative</div></div>
+          <div className="kpi"><span className="l">Monthly</span><span className="v">≈ {chf(monthly)}</span><span className="c">3.0% a year, illustrative</span></div>
           <hr className="sep" />
           <label className="check"><input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} /><span>Share my full profile with matching lenders.</span></label>
           <ErrorNote error={err} />

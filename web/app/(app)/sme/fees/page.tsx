@@ -1,6 +1,6 @@
 "use client";
 import { useApi } from "@/lib/client/api";
-import { List, ListSkeleton, PageHeader, Pill, Row, Section } from "@/components/ui";
+import { Card, List, ListSkeleton, PageHeader, Pill, Row, Section } from "@/components/ui";
 import { chf, date } from "@/lib/format";
 
 const METHOD: Record<string, string> = { MASTERCARD: "Mastercard", VISA: "Visa", TWINT: "TWINT" };
@@ -11,9 +11,9 @@ export default function Fees() {
   return (
     <div className="stack-l">
       <PageHeader title="Fees" back="/sme/more" />
-      <div className="stat"><span className="l">Per loan request, once</span>
-        <span className="v" style={{ fontSize: 44 }}>{price.data?.status === "PRICED" ? chf(price.data.amount) : "n/a"}</span>
-        {price.data?.placeholder && <span className="t-cap">Demo price</span>}</div>
+      <Card className="kpi"><span className="l">Per loan request, once</span>
+        <span className="v">{price.data?.status === "PRICED" ? chf(price.data.amount) : "n/a"}</span>
+        {price.data?.placeholder && <span className="c">Demo price</span>}</Card>
       <Section title="Payments">
         {pays.loading ? <ListSkeleton rows={1} /> : pays.data?.length ? (
           <List>{pays.data.map((p) => <Row key={p.id} icon="receipt" href={`/sme/loans/${p.application_id}`} title={<span className="num">{chf(p.amount, { decimals: 2 })}</span>} sub={`${METHOD[p.method] ?? p.method} · ${date(p.created_at)}`} value={<Pill tone="green">Paid</Pill>} />)}</List>
