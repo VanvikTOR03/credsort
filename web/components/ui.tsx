@@ -54,15 +54,19 @@ export function Pill({ children, tone }: { children: React.ReactNode; tone?: "gr
   return <span className={`pill ${tone ?? ""}`}>{children}</span>;
 }
 
-export function Seg<T extends string>({ options, value, onChange, label }: { options: { value: T; label: string }[]; value: T; onChange: (v: T) => void; label: string }) {
+/** iOS-style segmented control: pill track, white thumb with a shadow that slides to the chosen option. */
+export function Seg<T extends string>({ options, value, onChange, label, full }: { options: { value: T; label: string }[]; value: T; onChange: (v: T) => void; label: string; full?: boolean }) {
   const refs = useRef<Record<string, HTMLButtonElement | null>>({});
-  const [thumb, setThumb] = useState({ left: 2, width: 0 });
-  useLayoutEffect(() => { const el = refs.current[value]; if (el) setThumb({ left: el.offsetLeft, width: el.offsetWidth }); }, [value, options.length]);
+  const [thumb, setThumb] = useState({ left: 3, width: 0 });
+  const [ready, setReady] = useState(false); // no slide on first paint, only when the user switches
+  const measure = () => { const el = refs.current[value]; if (el) setThumb({ left: el.offsetLeft, width: el.offsetWidth }); };
+  useLayoutEffect(() => { measure(); const t = requestAnimationFrame(() => setReady(true)); return () => cancelAnimationFrame(t); }, [value, options.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { window.addEventListener("resize", measure); return () => window.removeEventListener("resize", measure); }); // eslint-disable-line react-hooks/exhaustive-deps
   return (
-    <div className="seg" role="tablist" aria-label={label}>
-      <span className="thumb" style={thumb} />
+    <div className={`seg ${full ? "full" : ""}`} role="tablist" aria-label={label}>
+      <span className="thumb" style={{ ...thumb, transition: ready ? undefined : "none" }} />
       {options.map((o) => (
-        <button key={o.value} ref={(el) => { refs.current[o.value] = el; }} role="tab" aria-selected={o.value === value} onClick={() => onChange(o.value)}>{o.label}</button>
+        <button key={o.value} type="button" ref={(el) => { refs.current[o.value] = el; }} role="tab" aria-selected={o.value === value} onClick={() => onChange(o.value)}>{o.label}</button>
       ))}
     </div>
   );

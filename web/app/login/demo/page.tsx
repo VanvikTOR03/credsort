@@ -27,26 +27,28 @@ export default function Demo() {
   return (
     <main className="auth">
       <div className="auth-box">
-        <div className="auth-top">
-          <Logo size="lg" />
-          <h1 className="t-title">Demo</h1>
-          <Seg label="Demo accounts" options={[{ value: "company", label: "Company" }, { value: "lender", label: "Lender" }, { value: "team", label: "Team" }]} value={tab} onChange={setTab} />
-        </div>
-        {accts === null && <div className="center"><span className="spinner" /></div>}
-        {accts && accts.length === 0 && <p className="center muted">No demo accounts here.</p>}
-        {accts && accts.length > 0 && (
-          <div className="list" key={tab}>
-            {list.map((a, i) => (
-              <button key={a.email} className="row enter" style={{ "--i": i } as React.CSSProperties} onClick={() => go(a)} disabled={!!busy}>
-                <Tile name={a.icon} size="sm" />
-                <div className="grow"><div className="title">{a.org}</div><div className="sub">{a.name}</div></div>
-                {busy === a.email ? <span className="spinner" /> : <Icon name="chevron" className="chev" />}
-              </button>
-            ))}
+        <div className="auth-card">
+          <div className="auth-top">
+            <Logo size="lg" />
+            <h1 className="t-title">Demo</h1>
+            <Seg full label="Demo accounts" options={[{ value: "company", label: "Company" }, { value: "lender", label: "Lender" }, { value: "team", label: "Team" }]} value={tab} onChange={setTab} />
           </div>
-        )}
-        {err && <p className="field-error center" role="alert">{err}</p>}
-        <div className="auth-foot"><Link href="/login" className="btn plain">Back to sign in</Link></div>
+          {accts === null && <div className="center"><span className="spinner" /></div>}
+          {accts && accts.length === 0 && <p className="center muted">No demo accounts here.</p>}
+          {accts && accts.length > 0 && (
+            <div className="list" key={tab}>
+              {list.map((a, i) => (
+                <button key={a.email} className="row enter" style={{ "--i": i } as React.CSSProperties} onClick={() => go(a)} disabled={!!busy}>
+                  <Tile name={a.icon} size="sm" />
+                  <div className="grow"><div className="title">{a.org}</div><div className="sub">{a.name}</div></div>
+                  {busy === a.email ? <span className="spinner" /> : <Icon name="chevron" className="chev" />}
+                </button>
+              ))}
+            </div>
+          )}
+          {err && <p className="field-error center" role="alert" style={{ padding: 0 }}>{err}</p>}
+        </div>
+        <div className="auth-links"><Link href="/login" className="btn plain">Back to sign in</Link></div>
       </div>
     </main>
   );

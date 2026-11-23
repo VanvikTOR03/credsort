@@ -50,11 +50,12 @@ function Form() {
 
   return (
     <main className="auth">
-      <form className="auth-box wide" onSubmit={submit} noValidate>
+      <div className="auth-box wide">
+      <form className="auth-card" onSubmit={submit} noValidate>
         <div className="auth-top">
           <Logo size="lg" />
           <h1 className="t-title">{TITLE[kind]}</h1>
-          {kind !== "accountant" && <Seg label="Account type" options={[{ value: "company", label: "Company" }, { value: "lender", label: "Lender" }]} value={kind} onChange={setKind} />}
+          {kind !== "accountant" && <Seg full label="Account type" options={[{ value: "company", label: "Company" }, { value: "lender", label: "Lender" }]} value={kind} onChange={setKind} />}
         </div>
         <div className="stack">
           <div><label className="lbl" htmlFor="cn">{NAME_LABEL[kind]}</label><input id="cn" className="in" value={f.legal_name} onChange={(e) => set("legal_name", e.target.value)} autoComplete="organization" /></div>
@@ -82,8 +83,9 @@ function Form() {
           {err && <p className="field-error" role="alert">{err}</p>}
           <button className="btn block" type="submit" disabled={!ready || busy}>{busy && <span className="spinner" />}Create account</button>
         </div>
-        <div className="auth-foot"><Link href="/login">Sign in</Link></div>
       </form>
+      <div className="auth-links"><Link href="/login" className="btn plain">Back to sign in</Link></div>
+      </div>
     </main>
   );
 }
